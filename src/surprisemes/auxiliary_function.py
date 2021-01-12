@@ -63,3 +63,14 @@ def from_weighted_edgelist(edgelist, is_sparse):
         return nx.to_scipy_sparse_matrix(G)
     else:
         return nx.to_numpy_array(G)
+
+
+def check_adjacency(adjacency):
+    if adjacency.shape[0] != adjacency.shape[1]:
+        raise TypeError("Adjacency matrix must be square.\
+            If you are passing an edgelist use the \
+            positional argument 'edgelist='.")
+    if np.sum(adjacency < 0):
+        raise TypeError(
+            "The adjacency matrix entries must be positive."
+                        )

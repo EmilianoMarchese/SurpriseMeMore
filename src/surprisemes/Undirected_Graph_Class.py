@@ -42,39 +42,31 @@ class UndirectedGraph:
                 adjacency, list
             ):  # Cast it to a numpy array: if it is given
                 # as a list it should not be too large
-                self.adjacency = np.array(adjacency)
-            if isinstance(adjacency, np.ndarray):
-                if adjacency.shape[0] != adjacency.shape[1]:
-                    raise TypeError("Adjacency matrix must be square.\
-                        If you are passing an edgelist use the \
-                        positional argument 'edgelist='.")
-                if adjacency.size > 0:
-                    if np.sum(adjacency < 0):
-                        raise TypeError(
-                            "The adjacency matrix entries must be positive."
-                                       )
-                    else:
-                        self.adjacency = adjacency
+                check_adjacency(np.array(adjacency))
+                self.adjacency = adjacency
+
+            elif isinstance(adjacency, np.ndarray):
+                check_adjacency(adjacency)
+                self.adjacency = adjacency
             else:
                 self.adjacency = adjacency
                 self.is_sparse = True
-
         elif edgelist is not None:
             if not isinstance(edgelist, (list, np.ndarray)):
                 raise TypeError(
                     "The edgelist must be passed as a list or numpy array."
                 )
             elif len(edgelist) > 0:
-                if len(edgelist[0]) > 3:
+                if len(edgelist[0]) == 2:
+                    self.adjacency = from_edgelist(edgelist, False)
+                elif len(edgelist[0]) == 3:
+                    self.adjacency = from_weighted_edgelist(edgelist, False)
+                else:
                     raise ValueError(
                         "This is not an edgelist. An edgelist must be \
                          a list or array of couples of nodes with optional \
                          weights. Is this an adjacency matrix?"
                     )
-                elif len(edgelist[0]) == 2:
-                    self.adjacency = from_edgelist(edgelist, False)
-                else:
-                    self.adjacency = from_weighted_edgelist(edgelist, False)
         else:
             raise TypeError("UndirectedGraph is missing one \
                             positional argument adjacency.")
