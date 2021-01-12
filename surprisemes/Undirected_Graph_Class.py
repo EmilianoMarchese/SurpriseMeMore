@@ -1,7 +1,7 @@
 import numpy as np
 from numba import jit, prange
 from scipy import comb
-import networkx as nx
+from auxiliary_function import degree, strength
 
 class UndirectedGraph:
     def __init__(
@@ -52,9 +52,9 @@ class UndirectedGraph:
                     self.adjacency = adjacency
                     self.is_sparse = True
                 if np.sum(adjacency) == np.sum(adjacency > 0):
-                    self.dseq = degree(adjacency).astype(np.float64)
+                    self.dseq = degree(adjacency).astype(np.int64)
                 else:
-                    self.dseq = degree(adjacency).astype(np.float64)
+                    self.dseq = degree(adjacency).astype(np.int64)
                     self.strength_sequence = strength(adjacency).astype(
                         np.float64
                     )
@@ -63,7 +63,7 @@ class UndirectedGraph:
 
                 # self.edgelist, self.deg_seq = edgelist_from_adjacency(adjacency)
                 self.n_nodes = len(self.dseq)
-                self.n_edges = np.sum(self.dseq)/2
+                self.n_edges = int(np.sum(self.dseq)/2)
                 self.is_initialized = True
 
         elif edgelist is not None:
