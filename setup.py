@@ -12,7 +12,7 @@ setup(
     license="MIT",
     install_requires=["numpy==1.19.5",
                       "numba==0.52",
-                      "networkx==2.55",
+                      "networkx==2.5",
                       "scipy==1.6.0",
                       ],
     extras_require={
