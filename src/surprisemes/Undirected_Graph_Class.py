@@ -1,6 +1,4 @@
 import numpy as np
-from numba import jit, prange
-from scipy import comb
 import scipy
 from auxiliary_function import *
 
@@ -40,20 +38,26 @@ class UndirectedGraph:
                     "The adjacency matrix must be passed as a \
                          list or numpy array or scipy sparse matrix."
                 )
-            elif adjacency.size > 0:
-                if np.sum(adjacency < 0):
-                    raise TypeError(
-                        "The adjacency matrix entries must be positive."
-                    )
-                if isinstance(
-                    adjacency, list
-                ):  # Cast it to a numpy array: if it is given as a list it should not be too large
-                    self.adjacency = np.array(adjacency)
-                elif isinstance(adjacency, np.ndarray):
-                    self.adjacency = adjacency
-                else:
-                    self.adjacency = adjacency
-                    self.is_sparse = True
+            if isinstance(
+                adjacency, list
+            ):  # Cast it to a numpy array: if it is given
+                # as a list it should not be too large
+                self.adjacency = np.array(adjacency)
+            if isinstance(adjacency, np.ndarray):
+                if adjacency.shape[0] != adjacency.shape[1]:
+                    raise TypeError("Adjacency matrix must be square.\
+                        If you are passing an edgelist use the \
+                        positional argument 'edgelist='.")
+                if adjacency.size > 0:
+                    if np.sum(adjacency < 0):
+                        raise TypeError(
+                            "The adjacency matrix entries must be positive."
+                                       )
+                    else:
+                        self.adjacency = adjacency
+            else:
+                self.adjacency = adjacency
+                self.is_sparse = True
 
         elif edgelist is not None:
             if not isinstance(edgelist, (list, np.ndarray)):
@@ -68,26 +72,24 @@ class UndirectedGraph:
                          weights. Is this an adjacency matrix?"
                     )
                 elif len(edgelist[0]) == 2:
-                    self.adjacency = from_edgelist(edgelist)
+                    self.adjacency = from_edgelist(edgelist, False)
                 else:
-                    self.adjacency = from_weighted_edgelist(edgelist)
-                self.n_nodes = len(self.dseq)
-                self.n_edges = np.sum(self.dseq)/2
-                self.is_initialized = True
-                if self.n_nodes > 2000:
-                    self.is_sparse = True
+                    self.adjacency = from_weighted_edgelist(edgelist, False)
         else:
             raise TypeError("UndirectedGraph is missing one \
-                            positional argument adjacency or edgelist.")
+                            positional argument adjacency.")
 
-        if np.sum(adjacency) == np.sum(adjacency > 0):
-            self.dseq = compute_degree(adjacency).astype(np.int64)
+        if np.sum(self.adjacency) == np.sum(self.adjacency > 0):
+            self.dseq = compute_degree(self.adjacency).astype(np.int64)
         else:
-            self.dseq = compute_degree(adjacency).astype(np.int64)
-            self.strength_sequence = compute_strength(adjacency).astype(
+            self.dseq = compute_degree(self.adjacency).astype(np.int64)
+            self.strength_sequence = compute_strength(self.adjacency).astype(
                 np.float64
             )
             self.is_weighted = True
+        self.n_nodes = len(self.dseq)
+        self.n_edges = int(np.sum(self.dseq)/2)
+        self.is_initialized = True
 
     def set_adjacency_matrix(self, adjacency):
         if self.is_initialized:
