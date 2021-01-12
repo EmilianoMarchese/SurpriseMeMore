@@ -1,0 +1,3 @@
+#!/Users/emiliano/Documents/PhD/Surprise_Library/Surprise_Mesoscale/venv/bin/python3.7
+from numba.pycc import main
+main()
