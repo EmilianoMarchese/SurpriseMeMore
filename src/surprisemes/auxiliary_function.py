@@ -52,7 +52,7 @@ def from_weighted_edgelist(edgelist, is_sparse):
     """ Returns np.ndarray or scipy.sparse matrix
         from edgelist.
 
-        edgelist: list or np.ndarray -  List of weighted edges, eache edge must
+        edgelist: list or np.ndarray - List of weighted edges, eache edge must
                  be given as a 3-tuples (u,v).
         is_sparse: boolean - If true the function returns a scipy.sparse
                  matrix.
@@ -65,12 +65,24 @@ def from_weighted_edgelist(edgelist, is_sparse):
         return nx.to_numpy_array(G)
 
 
-def check_adjacency(adjacency):
+def check_symmetric(a, is_sparse, rtol=1e-05, atol=1e-08):
+    if is_sparse:
+        return np.all(np.abs(a - a.T) < atol)
+    else:    
+        return np.allclose(a, a.T, rtol=rtol, atol=atol)
+
+
+def check_adjacency(adjacency, is_sparse):
+    """ Functions checking the validty of the
+        adjacency matrix and raising error if it isn't.
+
+        adjacency: np.ndarray - Adjacency matrix.
+    """
     if adjacency.shape[0] != adjacency.shape[1]:
-        raise TypeError("Adjacency matrix must be square.\
-            If you are passing an edgelist use the \
-            positional argument 'edgelist='.")
+        raise TypeError("Adjacency matrix must be square. If you are passing an edgelist use the positional argument 'edgelist='.")
     if np.sum(adjacency < 0):
         raise TypeError(
             "The adjacency matrix entries must be positive."
                         )
+    if not check_symmetric(adjacency, is_sparse):
+        raise TypeError("The adjacency matrix seems to be not symmetric, we suggest to use 'DirectedGraphClass'.")
