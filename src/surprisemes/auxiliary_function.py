@@ -4,35 +4,52 @@ import scipy
 import networkx as nx
 
 
-def compute_degree(a):
+def compute_degree(a, is_directed):
     """returns matrix A degrees
 
-    :param a: numpy.ndarray, a matrix
-    :return: numpy.ndarray
+    :param a: numpy.ndarray, a matrix.
+    :param is_directed: bool, the matrix is directed.
+    :return: numpy.ndarray.
     """
     # if the matrix is a numpy array
-    if type(a) == np.ndarray:
-        return np.sum(a > 0, 1)
-    # if the matrix is a scipy sparse matrix
-    elif type(a) in [scipy.sparse.csr.csr_matrix, scipy.sparse.coo.coo_matrix]:
-        return np.sum(a > 0, 1).A1
+    if is_directed:
+        if type(a) == np.ndarray:
+            return np.sum(a > 0, 0), np.sum(a > 0, 1)
+        # if the matrix is a scipy sparse matrix
+        elif type(a) in [scipy.sparse.csr.csr_matrix, scipy.sparse.coo.coo_matrix]:
+            return (np.sum(a > 0, 0).A1), np.sum(a > 0, 1).A1
+    else:    
+        if type(a) == np.ndarray:
+            return np.sum(a > 0, 1)
+        # if the matrix is a scipy sparse matrix
+        elif type(a) in [scipy.sparse.csr.csr_matrix, scipy.sparse.coo.coo_matrix]:
+            return np.sum(a > 0, 1).A1
 
 
-def compute_strength(a):
+def compute_strength(a, is_directed):
     """returns matrix A strengths
 
-    :param a: numpy.ndarray, a matrix
-    :return: numpy.ndarray
+    :param a: numpy.ndarray, a matrix.
+    :param is_directed: bool, the matrix is directed.
+    :return: numpy.ndarray.
     """
-    # if the matrix is a numpy array
-    if type(a) == np.ndarray:
-        return np.sum(a, 1)
-    # if the matrix is a scipy sparse matrix
-    elif type(a) in [scipy.sparse.csr.csr_matrix, scipy.sparse.coo.coo_matrix]:
-        return np.sum(a, 1).A1
+    if is_directed:
+        # if the matrix is a numpy array
+        if type(a) == np.ndarray:
+            return np.sum(a, 0), np.sum(a, 1)
+        # if the matrix is a scipy sparse matrix
+        elif type(a) in [scipy.sparse.csr.csr_matrix, scipy.sparse.coo.coo_matrix]:
+            return np.sum(a, 0).A1, np.sum(a, 1).A1
+    else:
+        # if the matrix is a numpy array
+        if type(a) == np.ndarray:
+            return np.sum(a, 1)
+        # if the matrix is a scipy sparse matrix
+        elif type(a) in [scipy.sparse.csr.csr_matrix, scipy.sparse.coo.coo_matrix]:
+            return np.sum(a, 1).A1
 
 
-def from_edgelist(edgelist, is_sparse):
+def from_edgelist(edgelist, is_sparse, is_directed):
     """ Returns np.ndarray or scipy.sparse matrix
         from edgelist.
 
@@ -40,8 +57,12 @@ def from_edgelist(edgelist, is_sparse):
                  be given as a 2-tuples (u,v).
         is_sparse: boolean - If true the function returns a scipy.sparse
                   matrix.
+        is_directed: boolean - If true the initialised graph is directed.
     """
-    G = nx.Graph()
+    if is_directed:
+        G = nx.DiGraph()
+    else:
+        G = nx.Graph()
     G.add_edges_from(edgelist)
     if is_sparse:
         return nx.to_scipy_sparse_matrix(G)
@@ -49,7 +70,7 @@ def from_edgelist(edgelist, is_sparse):
         return nx.to_numpy_array(G)
 
 
-def from_weighted_edgelist(edgelist, is_sparse):
+def from_weighted_edgelist(edgelist, is_sparse, is_directed):
     """ Returns np.ndarray or scipy.sparse matrix
         from edgelist.
 
@@ -57,8 +78,12 @@ def from_weighted_edgelist(edgelist, is_sparse):
                  be given as a 3-tuples (u,v).
         is_sparse: boolean - If true the function returns a scipy.sparse
                  matrix.
+        is_directed: boolean - If true the initialised graph is directed.
     """
-    G = nx.Graph()
+    if is_directed:
+        G = nx.DiGraph()
+    else:    
+        G = nx.Graph()
     G.add_weighted_edges_from(edgelist)
     if is_sparse:
         return nx.to_scipy_sparse_matrix(G)
@@ -73,11 +98,14 @@ def check_symmetric(a, is_sparse, rtol=1e-05, atol=1e-08):
         return np.allclose(a, a.T, rtol=rtol, atol=atol)
 
 
-def check_adjacency(adjacency, is_sparse):
+def check_adjacency(adjacency, is_sparse, is_directed):
     """ Functions checking the validty of the
         adjacency matrix and raising error if it isn't.
 
         adjacency: np.ndarray - Adjacency matrix.
+        is_sparse: boolean - If true the function returns a scipy.sparse
+                 matrix.
+        is_directed: boolean - If true the initialised graph is directed.
     """
     if adjacency.shape[0] != adjacency.shape[1]:
         raise TypeError("Adjacency matrix must be square. If you are passing an edgelist use the positional argument 'edgelist='.")
@@ -85,7 +113,7 @@ def check_adjacency(adjacency, is_sparse):
         raise TypeError(
             "The adjacency matrix entries must be positive."
                         )
-    if not check_symmetric(adjacency, is_sparse):
+    if (not check_symmetric(adjacency, is_sparse)) and (not is_directed):
         raise TypeError("The adjacency matrix seems to be not symmetric, we suggest to use 'DirectedGraphClass'.")
 
 

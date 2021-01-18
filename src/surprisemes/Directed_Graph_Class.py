@@ -5,7 +5,7 @@ from . import solver
 from . import cp_functions as CP
 
 
-class UndirectedGraph:
+class DirectedGraph:
     def __init__(
         self,
         adjacency=None,
@@ -16,8 +16,10 @@ class UndirectedGraph:
         self.adjacency = None
         self.is_sparse = False
         self.edgelist = None
-        self.degree_sequence= None
-        self.strength_sequence = None
+        self.degree_sequence_out= None
+        self.degree_sequence_in= None
+        self.strength_sequence_out = None
+        self.strength_sequence_in = None
         self.nodes_dict = None
         self.is_initialized = False
         self.is_weighted = False
@@ -59,12 +61,12 @@ class UndirectedGraph:
                 if len(edgelist[0]) == 2:
                     self.adjacency = AX.from_edgelist(edgelist,
                                                       self.is_sparse,
-                                                      False)
+                                                      True)
                     self.edgelist = edgelist
                 elif len(edgelist[0]) == 3:
                     self.adjacency = AX.from_weighted_edgelist(edgelist,
                                                                self.is_sparse,
-                                                               False)
+                                                               True)
                     self.edgelist = edgelist
                 else:
                     raise ValueError(
@@ -73,22 +75,34 @@ class UndirectedGraph:
         else:
             raise TypeError("UndirectedGraph is missing one positional argument adjacency.")
 
-        AX.check_adjacency(self.adjacency, self.is_sparse, False)
+        AX.check_adjacency(self.adjacency, self.is_sparse, True)
         if np.sum(self.adjacency) == np.sum(self.adjacency > 0):
-            self.degree_sequence = AX.compute_degree(self.adjacency,
-                                                     False).astype(np.int64)
+            self.degree_sequence_in, self.degree_sequence_out = AX.compute_degree(
+                                                     self.adjacency,
+                                                     True
+                                                     )
+            self.degree_sequence_in = self.degree_sequence_in.astype(np.int64)
+            self.degree_sequence_out = self.degree_sequence_out.astype(np.int64)
         else:
-            self.degree_sequence = AX.compute_degree(self.adjacency,
-                                                     False).astype(np.int64)
-            self.strength_sequence = AX.compute_strength(
+            self.degree_sequence_in, self.degree_sequence_out = AX.compute_degree(
+                                                     self.adjacency,
+                                                     True
+                                                     )
+            self.degree_sequence_in = self.degree_sequence_in.astype(np.int64)
+            self.degree_sequence_out = self.degree_sequence_out.astype(np.int64)
+
+            self.strength_sequence_in, self.strength_sequence_out = AX.compute_strength(
                 self.adjacency,
-                False,
-                ).astype(np.float64)
+                True
+                )
+            self.strength_sequence_in = self.strength_sequence_in.astype(np.float64)
+            self.strength_sequence_out = self.strength_sequence_out.astype(np.float64)
+
             self.adjacency_weighted = self.adjacency
             self.adjacency = (self.adjacency_weighted.astype(bool)).astype(np.int16)
             self.is_weighted = True
-        self.n_nodes = len(self.degree_sequence)
-        self.n_edges = int(np.sum(self.degree_sequence)/2)
+        self.n_nodes = len(self.degree_sequence_out)
+        self.n_edges = int(np.sum(self.degree_sequence_out)/2)
         self.is_initialized = True
 
     def set_adjacency_matrix(self, adjacency):
@@ -160,7 +174,7 @@ class UndirectedGraph:
             sorting_method = "jaccard"
 
         sort_func = {
-                     "random": lambda x: AX.shuffled_edges(x, False),
+                     "random": lambda x: AX.shuffled_edges(x, True),
                      "jaccard": lambda x: AX.jaccard_sorted_edges(x),
                      "zmotifs": None,
                     }
@@ -171,8 +185,8 @@ class UndirectedGraph:
             raise ValueError("Sorting method can be 'random', 'jaccard' and 'zmotifs'.")
         
         surp_fun = {
-                    "binary": lambda x,y : CP.calculate_surprise_logsum_cp_bin(x, y, False),
-                    "weighted": lambda x,y : CP.calculate_surprise_logsum_cp_weigh(x, y, False),
+                    "binary": lambda x,y : CP.calculate_surprise_logsum_cp_bin(x, y, True),
+                    "weighted": lambda x,y : CP.calculate_surprise_logsum_cp_weigh(x, y, True),
                     }
         
         try:
@@ -191,9 +205,9 @@ class UndirectedGraph:
         if initial_guess is None:
             self.init_guess = np.ones(self.n_nodes, dtype=int)
             if self.is_weighted:
-                self.init_guess[self.strength_sequence.argsort()[-3:]] = 0
+                self.init_guess[self.strength_sequence_out.argsort()[-3:]] = 0
             else:
-                self.init_guess[self.degree_sequence.argsort()[-3:]] = 0
+                self.init_guess[self.degree_sequence_out.argsort()[-3:]] = 0
         elif isinstance(initial_guess, np.ndarray):
             self.init_guess = initial_guess
         elif isinstance(initial_guess, list):
