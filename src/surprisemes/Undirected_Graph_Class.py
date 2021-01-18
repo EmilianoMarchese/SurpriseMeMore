@@ -2,6 +2,7 @@ import numpy as np
 import scipy
 from . import auxiliary_function as AX
 from . import solver
+from . import cp_functions as CP
 
 
 class UndirectedGraph:
@@ -104,15 +105,70 @@ class UndirectedGraph:
         self.edgelist = None
         self.is_initialized = False
 
-    def run_cp_detection(self):
-        self.initialize_problem()
+    def run_cp_detection(self,
+                         weighted = None,
+                         num_sim=1,
+                         sorting_method="default"):
+    
+        self.initialize_problem(weighted=weighted,
+                                num_sim=num_sim,
+                                sorting_method=sorting_method)
 
-        sol = solver.solver_cp()
+        sol = solver.solver_cp(adjacency_matrix = self.aux_adj,
+                               num_sim = num_sim,
+                               sort_edges = self.sorting_function,
+                               calculate_surprise = self.surprise_function,
+                               correct_partition_labeling = self.partition_labeler,
+                               is_directed=True,
+                               print_output=False)
 
         self.set_solved_problem(sol)
 
-    def initialize_problem(self):
-        pass
+    def initialize_problem(self,
+                           weighted,
+                           num_sim,
+                           sorting_method):
+        if weighted is None:
+            if self.is_weighted:
+                self.aux_adj = self.adjacency_weighted
+                self.method = "weighted"
+            else:
+                self.aux_adj = self.adjacency
+                self.method = "binary"
+        elif weighted:
+            try:
+                self.aux_adj =  self.adjacency_weighted
+                self.method = "weighted"
+            except:
+                raise TypeError("You choose weighted core peryphery detection but the graph you initialised is binary.")
+        else:
+            self.aux_adj = self.adjacency
+            self.method = "binary"
+        
+        sort_func = {
+                     "random": lambda x: AX.shuffled_edges(x, False),
+                     "jaccard": lambda x: AX.jaccard_sorted_edges(x),
+                     "zmotifs": None,
+                    }
 
-    def set_solved_problem(self):
-        pass
+        try:
+            self.sorting_function[sorting_method]
+        except:
+            raise ValueError("Sorting method can be 'random', 'jaccard' and 'zmotifs'.")
+        
+        surp_fun = {
+                    "binary": lambda x,y : CP.calculate_surprise_logsum_cp_bin(x, y, False),
+                    "weighted": lambda x,y : CP.calculate_surprise_logsum_cp_weigh(x, y, False),
+                    }
+        
+        try:
+            self.surprise_function = surp_fun[self.method]
+        except:
+            raise ValueError("CP method can be 'binary' or 'weighted'.")
+
+        self.partition_labeler = lambda x,y: CP.labeling_core_periphery(x,y)
+
+    def set_solved_problem(self, sol):
+        self.solution = sol[0]
+        self.log_surprise = sol[1]
+        self.surprise = np.exp(-self.log_surprise)

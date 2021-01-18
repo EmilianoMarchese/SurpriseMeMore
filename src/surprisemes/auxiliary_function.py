@@ -1,4 +1,5 @@
 import numpy as np
+from numba import jit
 import scipy
 import networkx as nx
 
@@ -86,3 +87,88 @@ def check_adjacency(adjacency, is_sparse):
                         )
     if not check_symmetric(adjacency, is_sparse):
         raise TypeError("The adjacency matrix seems to be not symmetric, we suggest to use 'DirectedGraphClass'.")
+
+
+@jit(nopython=True, fastmath=True)
+def sumLogProbabilities(nextLogP, logP):
+    if nextLogP == 0:
+        stop = True
+    else:
+        stop = False
+        if nextLogP > logP:
+            common = nextLogP
+            diffExponent = logP - common
+        else:
+            common = logP
+            diffExponent = nextLogP - common
+
+        logP = common + ((np.log10(1 + 10**diffExponent)) / np.log10(10))
+
+        if (nextLogP - logP) > -4:
+            stop = True
+
+    return logP, stop
+
+
+@jit(nopython=True, fastmath=True)
+def logC(n, k):
+
+    if k == n:
+        return 0
+    elif (n > 1000) & (k > 1000):  # Stirling's binomial coeff approximation
+        return logStirFac(n) - logStirFac(k) - logStirFac(n-k)
+    else:
+        t = n - k
+        if t < k:
+            t = k
+        logC = sumRange(t + 1, n) - sumFactorial(n - t)
+        return logC
+
+
+@jit(nopython=True, fastmath=True)
+def logStirFac(n):
+    if n <= 1:
+        return 1.0
+    else:
+        return -n + n*np.log10(n) + np.log10(n*(1 + 4.0*n*(1.0 + 2.0*n)))/6.0 + np.log10(np.pi)/2.0
+
+
+@jit(nopython=True, fastmath=True)
+def sumRange(xmin, xmax):
+    csum = 0
+    for i in np.arange(xmin, xmax+1):
+        csum += np.log10(i)
+    return csum
+
+
+@jit(nopython=True, fastmath=True)
+def sumFactorial(n):
+    csum = 0
+    if n > 1:
+        for i in np.arange(2, n+1):
+            csum += np.log10(i)
+    return csum
+
+
+def shuffled_edges(adjacency_matrix, is_directed):
+    adj = adjacency_matrix.astype(bool).astype(np.int16)
+    if not is_directed:
+        adj = np.triu(adj)
+    edges = np.stack(adj.nonzero(), axis=-1)
+    np.random.shuffle(edges)
+    shuffled_edges = edges.astype(int)
+    return shuffled_edges
+
+
+def jaccard_sorted_edges(adjacency_matrix):
+    G = nx.from_numpy_matrix(adjacency_matrix)
+    jacc = nx.jaccard_coefficient(G, ebunch=G.edges())
+    jacc_array = []
+    for u, v, p in jacc:
+        jacc_array += [[u,v,p]]
+    jacc_array = np.array(jacc_array)
+    jacc_array = jacc_array[jacc_array[:,2].argsort()][::-1]
+    sorted_edges = jacc_array[:,0:2]
+    sorted_edges = sorted_edges.astype(np.int)
+    return sorted_edges
+
