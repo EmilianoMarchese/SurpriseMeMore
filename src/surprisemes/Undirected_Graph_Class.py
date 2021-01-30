@@ -8,7 +8,7 @@ from . import cp_functions as CP
 class UndirectedGraph:
     def __init__(
         self,
-        adjacency=None,
+        adjacency,
         edgelist=None,
     ):
         self.n_nodes = None

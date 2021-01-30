@@ -3,13 +3,15 @@ from numba import jit
 import scipy
 import networkx as nx
 
-
 def compute_degree(a, is_directed):
-    """returns matrix A degrees
+    """returns matrix *a* degree sequence.
 
-    :param a: numpy.ndarray, a matrix.
-    :param is_directed: bool, the matrix is directed.
-    :return: numpy.ndarray.
+    :param a: Matrix.
+    :type a:  numpy.ndarray
+    :param is_directed: True if the matrix is directed.
+    :type is_directed: bool
+    :return: Degree sequence.
+    :rtype: numpy.ndarray.
     """
     # if the matrix is a numpy array
     if is_directed:
@@ -27,11 +29,14 @@ def compute_degree(a, is_directed):
 
 
 def compute_strength(a, is_directed):
-    """returns matrix A strengths
+    """Returns matrix *a* strength sequence.
 
-    :param a: numpy.ndarray, a matrix.
-    :param is_directed: bool, the matrix is directed.
-    :return: numpy.ndarray.
+    :param a: Matrix.
+    :type a: numpy.ndarray
+    :param is_directed: True if the matrix is directed.
+    :type is_directed: bool
+    :return: Strength sequence.
+    :rtype: numpy.ndarray
     """
     if is_directed:
         # if the matrix is a numpy array
@@ -50,15 +55,18 @@ def compute_strength(a, is_directed):
 
 
 def from_edgelist(edgelist, is_sparse, is_directed):
-    """ Returns np.ndarray or scipy.sparse matrix
-        from edgelist.
+    """Returns np.ndarray or scipy.sparse matrix from edgelist.
 
-        edgelist: list or np.ndarray -  List of edges, eache edge must
-                 be given as a 2-tuples (u,v).
-        is_sparse: boolean - If true the function returns a scipy.sparse
-                  matrix.
-        is_directed: boolean - If true the initialised graph is directed.
+    :param edgelist: List of edges, eache edge must be given as a 2-tuples (u,v).
+    :type edgelist: list or numpy.ndarray
+    :param is_sparse: If true the returned matrix is sparse.
+    :type is_sparse: bool
+    :param is_directed: If true the graph is directed.
+    :type is_directed: bool
+    :return: Adjacency matrix.
+    :rtype: numpy.ndarray or scipy.sparse
     """
+    # TODO: vedere che tipo di sparse e'
     if is_directed:
         G = nx.DiGraph()
     else:
@@ -71,14 +79,16 @@ def from_edgelist(edgelist, is_sparse, is_directed):
 
 
 def from_weighted_edgelist(edgelist, is_sparse, is_directed):
-    """ Returns np.ndarray or scipy.sparse matrix
-        from edgelist.
+    """Returns np.ndarray or scipy.sparse matrix from edgelist.
 
-        edgelist: list or np.ndarray - List of weighted edges, eache edge must
-                 be given as a 3-tuples (u,v).
-        is_sparse: boolean - If true the function returns a scipy.sparse
-                 matrix.
-        is_directed: boolean - If true the initialised graph is directed.
+    :param edgelist: List of weighted edges, eache edge must be given as a 3-tuples (u,v,w).
+    :type edgelist: [type]
+    :param is_sparse: If true the returned matrix is sparse.
+    :type is_sparse: bool
+    :param is_directed: If true the graph is directed.
+    :type is_directed: bool
+    :return: Weighted adjacency matrix.
+    :rtype: numpy.ndarray or scipy.sparse
     """
     if is_directed:
         G = nx.DiGraph()
@@ -92,25 +102,48 @@ def from_weighted_edgelist(edgelist, is_sparse, is_directed):
 
 
 def check_symmetric(a, is_sparse, rtol=1e-05, atol=1e-08):
+    """Checks if the matrix is symmetric.
+
+    :param a: Matrix.
+    :type a: numpy.ndarray or scipy.sparse
+    :param is_sparse: If true the matrix is sparse.
+    :type is_sparse: bool
+    :param rtol: Tuning parameter, defaults to 1e-05.
+    :type rtol: float, optional
+    :param atol: Tuning parameter, defaults to 1e-08.
+    :type atol: float, optional
+    :return: True if the matrix is symmetric.
+    :rtype: bool
+    """
     if is_sparse:
         return np.all(np.abs(a - a.T) < atol)
     else:    
         return np.allclose(a, a.T, rtol=rtol, atol=atol)
 
-
-def check_adjacency(adjacency, is_sparse, is_directed):
-    """ Functions checking the validty of the
-        adjacency matrix and raising error if it isn't.
+""" 
 
         adjacency: np.ndarray - Adjacency matrix.
         is_sparse: boolean - If true the function returns a scipy.sparse
                  matrix.
         is_directed: boolean - If true the initialised graph is directed.
     """
+def check_adjacency(adjacency, is_sparse, is_directed):
+    """Functions checking the _validty_ of the adjacency matrix.
+
+    :param adjacency: Adjacency matrix.
+    :type adjacency: numpy.ndarray or scipy.sparse
+    :param is_sparse: If true the matrix is sparse.
+    :type is_sparse: bool
+    :param is_directed: True if the graph is directed.
+    :type is_directed: bool
+    :raises TypeError: Matrix not square.
+    :raises ValueError: Negative entries.
+    :raises TypeError: Matrix not symmetric.
+    """
     if adjacency.shape[0] != adjacency.shape[1]:
         raise TypeError("Adjacency matrix must be square. If you are passing an edgelist use the positional argument 'edgelist='.")
     if np.sum(adjacency < 0):
-        raise TypeError(
+        raise ValueError(
             "The adjacency matrix entries must be positive."
                         )
     if (not check_symmetric(adjacency, is_sparse)) and (not is_directed):
@@ -163,6 +196,15 @@ def logStirFac(n):
 
 @jit(nopython=True, fastmath=True)
 def sumRange(xmin, xmax):
+    """[summary]
+
+    :param xmin: [description]
+    :type xmin: [type]
+    :param xmax: [description]
+    :type xmax: [type]
+    :return: [description]
+    :rtype: [type]
+    """
     csum = 0
     for i in np.arange(xmin, xmax+1):
         csum += np.log10(i)
@@ -179,6 +221,15 @@ def sumFactorial(n):
 
 
 def shuffled_edges(adjacency_matrix, is_directed):
+    """Shuffles edges randomly.
+
+    :param adjacency_matrix: Matrix.
+    :type adjacency_matrix: numpy.ndarray
+    :param is_directed: True if graph is directed.
+    :type is_directed: bool
+    :return: Shuffled edgelist.
+    :rtype: mumpy.ndarray
+    """
     adj = adjacency_matrix.astype(bool).astype(np.int16)
     if not is_directed:
         adj = np.triu(adj)
@@ -189,6 +240,13 @@ def shuffled_edges(adjacency_matrix, is_directed):
 
 
 def jaccard_sorted_edges(adjacency_matrix):
+    """Returns edges ordered based on jaccard index.
+
+    :param adjacency_matrix: Matrix.
+    :type adjacency_matrix: numpy.ndarray
+    :return: Ordered edgelist.
+    :rtype: numpy.ndarray
+    """
     G = nx.from_numpy_matrix(adjacency_matrix)
     jacc = nx.jaccard_coefficient(G, ebunch=G.edges())
     jacc_array = []

@@ -8,7 +8,7 @@ from . import cp_functions as CP
 class DirectedGraph:
     def __init__(
         self,
-        adjacency=None,
+        adjacency,
         edgelist=None,
     ):
         self.n_nodes = None
@@ -175,14 +175,13 @@ class DirectedGraph:
 
         sort_func = {
                      "random": lambda x: AX.shuffled_edges(x, True),
-                     "jaccard": lambda x: AX.jaccard_sorted_edges(x),
-                     "zmotifs": None,
+                     "degrees": None,
                     }
 
         try:
             self.sorting_function = sort_func[sorting_method]
         except:
-            raise ValueError("Sorting method can be 'random', 'jaccard' and 'zmotifs'.")
+            raise ValueError("Sorting method can be 'random' and 'degrees'.")
         
         surp_fun = {
                     "binary": lambda x,y : CP.calculate_surprise_logsum_cp_bin(x, y, True),
