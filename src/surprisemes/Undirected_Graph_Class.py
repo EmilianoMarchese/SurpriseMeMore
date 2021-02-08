@@ -277,7 +277,7 @@ class UndirectedGraph:
         except:
             raise ValueError("Comunity detection method can be 'binary' or 'weighted'.")
 
-        self.flipping_function = lambda x: CD.flipping_function(x)
+        self.flipping_function = lambda x: CD.flipping_function_comdet(x)
 
         self.partition_labeler = lambda x: CD.labeling_communities(x)
 

@@ -256,7 +256,9 @@ def flipping_function_comdet(comm):
     :rtype: numpy.ndarray
     """
     labels_set = np.unique(comm)
-    node_index = np.random.randint(0, comm.shape[0]+1)
-    new_label = np.random.choice(labels_set[labels_set != comm[node_index]])
-    comm[node_index] = new_label
+    node_index = np.random.randint(0, comm.shape[0])
+    remaining_labels = labels_set[labels_set != comm[node_index]]
+    if remaining_labels:
+        new_label = np.random.choice(remaining_labels)
+        comm[node_index] = new_label
     return comm
