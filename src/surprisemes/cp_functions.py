@@ -4,9 +4,20 @@ from . import auxiliary_function as AX
 
 
 @jit(nopython=True)
-def compute_sum(adj, raw_indices, column_indices):
+def compute_sum(adj, row_indices, column_indices):
+    """Computes number of links/total weight given nodes indices.
+
+    :param adj: Adjacency matrix.
+    :type adj: numpy.ndarray
+    :param row_indices: Row indices.
+    :type row_indices: numpy.ndarray
+    :param column_indices: Columns indices.
+    :type column_indices: numpy.ndarray
+    :return: Total links/weights
+    :rtype: float
+    """
     Sum = 0.0
-    for ii in raw_indices:
+    for ii in row_indices:
         for jj in column_indices:
             Sum += adj[ii, jj]
     return Sum
@@ -15,9 +26,16 @@ def compute_sum(adj, raw_indices, column_indices):
 def calculate_surprise_logsum_cp_weigh(adjacency_matrix,
                                        cluster_assignment,
                                        is_directed):
-    """
-    Computes core-periphery weighted surprise given a certain nodes'
-    partitioning.
+    """Computes core-periphery weighted log-surprise given a certain nodes' partitioning.
+
+    :param adjacency_matrix: Weighted adjacency matrix.
+    :type adjacency_matrix: numpy.ndarray
+    :param cluster_assignment: Core periphery assigments.
+    :type cluster_assignment: numpy.ndarray
+    :param is_directed: True if the graph is directed.
+    :type is_directed: bool
+    :return: Log-surprise
+    :rtype: float
     """
     core_nodes = np.unique(np.where(cluster_assignment == 0)[0])
     periphery_nodes = np.unique(np.where(cluster_assignment == 1)[0])
@@ -91,6 +109,7 @@ def surprise_bipartite_logsum_CP_Weigh(p, p_c, p_x, p_p, w, w_c, w_x, w_p):
 
 @jit(nopython=True)
 def logMultiHyperProbabilityWeight(p, p_c, p_x, p_p, w, w_c, w_x, w_p):
+    """Computes the logarithm of the Negative Multinomial Hypergeometric distribution."""
     logH = AX.logC(p_c+w_c-1, w_c) + AX.logC(p_x+w_x-1, w_x) + AX.logC(p_p+w_p-1, w_p) - AX.logC(p+w, w)
     return logH
 
@@ -98,9 +117,16 @@ def logMultiHyperProbabilityWeight(p, p_c, p_x, p_p, w, w_c, w_x, w_p):
 def calculate_surprise_logsum_cp_bin(adjacency_matrix,
                                      cluster_assignment,
                                      is_directed):
-    """
-    Computes core-periphery binary surprise given a certain nodes'
-    partitioning.
+    """Computes core-periphery binary log-surprise given a certain nodes' partitioning.
+
+    :param adjacency_matrix: Binary adjacency matrix.
+    :type adjacency_matrix: numpy.ndarray
+    :param cluster_assignment: Core periphery assigments.
+    :type cluster_assignment: numpy.ndarray
+    :param is_directed: True if the graph is directed.
+    :type is_directed: bool
+    :return: Log-surprise
+    :rtype: float
     """
     core_nodes = np.unique(np.where(cluster_assignment == 0)[0])
     periphery_nodes = np.unique(np.where(cluster_assignment == 1)[0])
@@ -166,6 +192,7 @@ def surprise_bipartite_logsum_CP_Bin(p, p_c, p_x, l, l_c, l_x):
 
 @jit(nopython=True)
 def logMultiHyperProbability(p, p_c, p_x, l, l_c, l_x):
+    """Computes the logarithm of the Multinomial Hypergeometric distribution."""
     logH = AX.logC(p_c, l_c) + AX.logC(p_x, l_x) + AX.logC(p - p_c - p_x, l-l_c-l_x) - AX.logC(p, l)
     return logH
 
@@ -191,3 +218,24 @@ def labeling_core_periphery(adjacency_matrix, cluster_assignment):
         cluster_assignment_new = 1 - cluster_assignment
         return cluster_assignment_new
     return cluster_assignment
+
+
+def flipping_function_cp(comm, n_flipping):
+    """Moves n nodes, randomly selected, from a partition to the other.
+
+    :param comm: Nodes memberships.
+    :type comm: numpy.ndarray
+    :param n_flipping: Number of nodes to flipped.
+    :type n_flipping: int
+    :return: New nodes memberships.
+    :rtype: numpy.ndarray
+    """
+    if np.random.random() > 0.5:
+        comm[np.random.choice(np.where(comm == 1)[0],
+                              replace=False,
+                              size=n_flipping)] = 0
+    else:
+        comm[np.random.choice(np.where(comm == 0)[0],
+                              replace=False,
+                              size=n_flipping)] = 1
+    return comm

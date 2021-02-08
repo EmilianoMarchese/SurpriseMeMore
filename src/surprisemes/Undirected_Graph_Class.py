@@ -130,6 +130,7 @@ class UndirectedGraph:
                                sort_edges=self.sorting_function,
                                calculate_surprise=self.surprise_function,
                                correct_partition_labeling=self.partition_labeler,
+                               flipping_function=self.flipping_function,
                                print_output=print_output)
 
         self._set_solved_problem(sol)
@@ -183,6 +184,8 @@ class UndirectedGraph:
         except:
             raise ValueError("CP method can be 'binary' or 'weighted'.")
 
+        self.flipping_function = lambda x: CP.flipping_function_cp(x, 1)
+
         self.partition_labeler = lambda x, y: CP.labeling_core_periphery(x, y)
 
     def _set_initial_guess_cp(self, initial_guess):
@@ -219,6 +222,7 @@ class UndirectedGraph:
                                     calculate_surprise=self.surprise_function,
                                     correct_partition_labeling=self.partition_labeler,
                                     prob_mix=prob_mix,
+                                    flipping_function=self.flipping_function,
                                     print_output=print_output)
 
         self._set_solved_problem(sol)
@@ -272,6 +276,8 @@ class UndirectedGraph:
             self.surprise_function = surp_fun[self.method]
         except:
             raise ValueError("Comunity detection method can be 'binary' or 'weighted'.")
+
+        self.flipping_function = lambda x: CD.flipping_function(x)
 
         self.partition_labeler = lambda x: CD.labeling_communities(x)
 

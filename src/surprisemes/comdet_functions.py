@@ -24,7 +24,7 @@ def calculate_possible_intracluster_links(partitions,
 
 @jit(nopython=True)
 def intracluster_links(adj, partitions):
-    """Function Computing intracluster links or weights.
+    """Computes intracluster links or weights.
 
     :param adj: Adjacency matrix.
     :type adj: numpy.ndarray
@@ -43,6 +43,15 @@ def intracluster_links(adj, partitions):
 
 @jit(nopython=True)
 def intracluster_links_aux(adj, indices):
+    """Computes intracluster links or weights given nodes indices.
+
+    :param adj: [description]
+    :type adj: [type]
+    :param indices: [description]
+    :type indices: [type]
+    :return: [description]
+    :rtype: [type]
+    """
     n_links = 0
     for ii in indices:
         for jj in indices:
@@ -53,6 +62,17 @@ def intracluster_links_aux(adj, indices):
 def calculate_surprise_logsum_clust_bin(adjacency_matrix,
                                         cluster_assignment,
                                         is_directed):
+    """Calculates the logarithm of the surprise given the current partitions for a binary network.
+
+    :param adjacency_matrix: Binary adjacency matrix.
+    :type adjacency_matrix: numpy.ndarray
+    :param cluster_assignment: Nodes memberships.
+    :type cluster_assignment: numpy.ndarray
+    :param is_directed: True if the graph is directed.
+    :type is_directed: bool
+    :return: Log-surprise.
+    :rtype: float
+    """
     if is_directed:
         # intracluster links
         p = intracluster_links(adjacency_matrix,
@@ -86,6 +106,19 @@ def calculate_surprise_logsum_clust_bin(adjacency_matrix,
 
 @jit(nopython=True)
 def surprise_logsum_Clust_Bin(F, p, M, m):
+    """[summary]
+
+    :param F: [description]
+    :type F: [type]
+    :param p: [description]
+    :type p: [type]
+    :param M: [description]
+    :type M: [type]
+    :param m: [description]
+    :type m: [type]
+    :return: [description]
+    :rtype: [type]
+    """
     stop = False
     min_p = min(M, m)
 
@@ -103,7 +136,7 @@ def surprise_logsum_Clust_Bin(F, p, M, m):
 
 @jit(nopython=True)
 def logHyperProbability(F, p, M, m):
-    '''Evaluation of logarithmic hypergeometric distribution'''
+    '''Evaluates logarithmic hypergeometric distribution'''
     logH = AX.logC(M, p) + AX.logC(F-M, m-p) - AX.logC(F, m)
     return logH
 
@@ -111,6 +144,17 @@ def logHyperProbability(F, p, M, m):
 def calculate_surprise_logsum_clust_weigh(adjacency_matrix,
                                           cluster_assignment,
                                           is_directed):
+    """Calculates the logarithm of the surprise given the current partitions for a weighted network.
+
+    :param adjacency_matrix: Weighted adjacency matrix.
+    :type adjacency_matrix: numpy.ndarray
+    :param cluster_assignment: Nodes memberships.
+    :type cluster_assignment: numpy.ndarray
+    :param is_directed: True if the graph is directed.
+    :type is_directed: bool
+    :return: Log-surprise.
+    :rtype: float
+    """
     if is_directed:
         # intracluster weights
         w = intracluster_links(adjacency_matrix,
@@ -146,6 +190,21 @@ def calculate_surprise_logsum_clust_weigh(adjacency_matrix,
 
 @jit(nopython=True)
 def surprise_logsum_Clust_weigh(Vi, w, Ve, W, V):
+    """
+
+    :param Vi: [description]
+    :type Vi: [type]
+    :param w: [description]
+    :type w: [type]
+    :param Ve: [description]
+    :type Ve: [type]
+    :param W: [description]
+    :type W: [type]
+    :param V: [description]
+    :type V: [type]
+    :return: [description]
+    :rtype: [type]
+    """
     stop = False
 
     logP = logNegativeHyperProbability(Vi, w, Ve, W, V)
@@ -162,18 +221,18 @@ def surprise_logsum_Clust_weigh(Vi, w, Ve, W, V):
 
 @jit(nopython=True)
 def logNegativeHyperProbability(Vi, w, Ve, W, V):
-    '''Evaluation of logarithmic hypergeometric distribution'''
+    '''Evaluates logarithmic hypergeometric distribution'''
     logH = AX.logC(Vi+w-1, w) + AX.logC(Ve+W-w, W-w) - AX.logC(V+W, W)
     return logH
 
 
 def labeling_communities(partitions):
-    """[summary]
+    """Gives labels to communities from 0 to number of communities minus one.
 
-    :param partitions: [description]
-    :type partitions: [type]
-    :return: [description]
-    :rtype: [type]
+    :param partitions: Nodes memberships.
+    :type partitions: numpy.ndarray
+    :return: Re-labeled nodes memberships.
+    :rtype: numpy.ndarray
     """
     different_partitions = np.unique(partitions, return_counts=True)
     aux_argsort = np.argsort(different_partitions[1])[::-1]
@@ -186,3 +245,18 @@ def labeling_communities(partitions):
         new_partitioning[indices_old] = new_part
 
     return new_partitioning
+
+
+def flipping_function_comdet(comm):
+    """Changes the membership of a randomly selected node.
+
+    :param comm: Nodes memberships.
+    :type comm: numpy.ndarray
+    :return: New nodes memberships.
+    :rtype: numpy.ndarray
+    """
+    labels_set = np.unique(comm)
+    node_index = np.random.randint(0, comm.shape[0]+1)
+    new_label = np.random.choice(labels_set[labels_set != comm[node_index]])
+    comm[node_index] = new_label
+    return comm

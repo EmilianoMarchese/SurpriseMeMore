@@ -7,6 +7,7 @@ def solver_cp(adjacency_matrix,
               sort_edges,
               calculate_surprise,
               correct_partition_labeling,
+              flipping_function,
               print_output=False):
     """[summary]
 
@@ -74,6 +75,21 @@ def solver_cp(adjacency_matrix,
             print(surprise)
         sim += 1
 
+    if len(cluster_assignment) <= 500:
+        n_flips = 100
+    else:
+        n_flips = int(len(cluster_assignment) * 0.2)
+
+    flips = 0
+    while(flips < n_flips):
+        cluster_assignment_temp = flipping_function(cluster_assignment.copy)
+        surprise_temp = calculate_surprise(adjacency_matrix,
+                                           cluster_assignment_temp)
+        if (surprise_temp > surprise):
+            cluster_assignment = cluster_assignment_temp.copy()
+            surprise = surprise_temp
+        flips += 1
+
     cluster_assignment = correct_partition_labeling(adjacency_matrix,
                                                     cluster_assignment)
     return cluster_assignment, surprise
@@ -86,6 +102,7 @@ def solver_com_det(adjacency_matrix,
                    calculate_surprise,
                    correct_partition_labeling,
                    prob_mix,
+                   flipping_function,
                    print_output=False):
     """[summary]
 
@@ -151,6 +168,21 @@ def solver_com_det(adjacency_matrix,
         if print_output:
             print(surprise)
         sim += 1
+
+    if len(cluster_assignment) <= 500:
+        n_flips = 100
+    else:
+        n_flips = int(len(cluster_assignment) * 0.2)
+
+    flips = 0
+    while(flips < n_flips):
+        cluster_assignment_temp = flipping_function(cluster_assignment.copy)
+        surprise_temp = calculate_surprise(adjacency_matrix,
+                                           cluster_assignment_temp)
+        if (surprise_temp > surprise):
+            cluster_assignment = cluster_assignment_temp.copy()
+            surprise = surprise_temp
+        flips += 1
 
     cluster_assignement_proper = correct_partition_labeling(cluster_assignment.copy())
     return cluster_assignement_proper, surprise
