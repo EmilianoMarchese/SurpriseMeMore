@@ -3,6 +3,7 @@ import scipy
 from . import auxiliary_function as AX
 from . import solver
 from . import cp_functions as CP
+from . import comdet_functions as CD
 
 
 class DirectedGraph:
@@ -16,8 +17,8 @@ class DirectedGraph:
         self.adjacency = None
         self.is_sparse = False
         self.edgelist = None
-        self.degree_sequence_out= None
-        self.degree_sequence_in= None
+        self.degree_sequence_out = None
+        self.degree_sequence_in = None
         self.strength_sequence_out = None
         self.strength_sequence_in = None
         self.nodes_dict = None
@@ -127,30 +128,33 @@ class DirectedGraph:
         self.is_initialized = False
 
     def run_cp_detection(self,
-                        initial_guess = None,
-                         weighted = None,
+                         initial_guess=None,
+                         weighted=None,
                          num_sim=2,
-                         sorting_method="default"):
-    
-        self.initialize_problem(initial_guess=initial_guess,
-                                weighted=weighted,
-                                sorting_method=sorting_method)
+                         sorting_method="default",
+                         print_output=False):
 
-        sol = solver.solver_cp(adjacency_matrix = self.aux_adj,
-                               cluster_assignment = self.init_guess,
-                               num_sim = num_sim,
-                               sort_edges = self.sorting_function,
-                               calculate_surprise = self.surprise_function,
-                               correct_partition_labeling = self.partition_labeler,
-                               print_output=False)
+        self._initialize_problem_cp(initial_guess=initial_guess,
+                                    weighted=weighted,
+                                    sorting_method=sorting_method)
 
-        self.set_solved_problem(sol)
+        sol = solver.solver_cp(adjacency_matrix=self.aux_adj,
+                               cluster_assignment=self.init_guess,
+                               num_sim=num_sim,
+                               sort_edges=self.sorting_function,
+                               calculate_surprise=self.surprise_function,
+                               correct_partition_labeling=self.partition_labeler,
+                               flipping_function=self.flipping_function,
+                               print_output=print_output)
 
-    def initialize_problem(self,
-                           initial_guess,
-                           weighted,
-                           sorting_method):
-        self.set_initial_guess(initial_guess)
+        self._set_solved_problem(sol)
+
+    def _initialize_problem_cp(self,
+                               initial_guess,
+                               weighted,
+                               sorting_method):
+
+        self._set_initial_guess_cp(initial_guess)
         if weighted is None:
             if self.is_weighted:
                 self.aux_adj = self.adjacency_weighted
@@ -160,7 +164,7 @@ class DirectedGraph:
                 self.method = "binary"
         elif weighted:
             try:
-                self.aux_adj =  self.adjacency_weighted
+                self.aux_adj = self.adjacency_weighted
                 self.method = "weighted"
             except:
                 raise TypeError("You choose weighted core peryphery detection but the graph you initialised is binary.")
@@ -168,39 +172,37 @@ class DirectedGraph:
             self.aux_adj = self.adjacency
             self.method = "binary"
 
-        if (sorting_method=="default") and (self.is_weighted):
+        if (sorting_method == "default") and (self.is_weighted):
             sorting_method = "random"
-        elif (sorting_method=="default") and (not self.is_weighted):
+        elif (sorting_method == "default") and (not self.is_weighted):
             sorting_method = "jaccard"
 
         sort_func = {
                      "random": lambda x: AX.shuffled_edges(x, True),
                      "degrees": None,
+                     "strengths": None,
                     }
 
         try:
             self.sorting_function = sort_func[sorting_method]
         except:
-            raise ValueError("Sorting method can be 'random' and 'degrees'.")
-        
+            raise ValueError("Sorting method can be 'random', 'degrees' or 'strengths'.")
+
         surp_fun = {
-                    "binary": lambda x,y : CP.calculate_surprise_logsum_cp_bin(x, y, True),
-                    "weighted": lambda x,y : CP.calculate_surprise_logsum_cp_weigh(x, y, True),
+                    "binary": lambda x, y: CP.calculate_surprise_logsum_cp_bin(x, y, True),
+                    "weighted": lambda x, y: CP.calculate_surprise_logsum_cp_weigh(x, y, True),
                     }
-        
+
         try:
             self.surprise_function = surp_fun[self.method]
         except:
             raise ValueError("CP method can be 'binary' or 'weighted'.")
 
-        self.partition_labeler = lambda x,y: CP.labeling_core_periphery(x,y)
+        self.flipping_function = lambda x: CP.flipping_function_cp(x, 1)
 
-    def set_solved_problem(self, sol):
-        self.solution = sol[0]
-        self.log_surprise = sol[1]
-        self.surprise = np.exp(-self.log_surprise)
+        self.partition_labeler = lambda x, y: CP.labeling_core_periphery(x, y)
 
-    def set_initial_guess(self, initial_guess):
+    def _set_initial_guess_cp(self, initial_guess):
         if initial_guess is None:
             self.init_guess = np.ones(self.n_nodes, dtype=int)
             if self.is_weighted:
@@ -211,6 +213,100 @@ class DirectedGraph:
             self.init_guess = initial_guess
         elif isinstance(initial_guess, list):
             self.init_guess = np.array(initial_guess)
-        
+
         if self.init_guess.shape[0] != self.n_nodes:
             raise ValueError("The length of the initial guess provided is different from the network number of nodes.")
+
+    def run_comunity_detection(self,
+                               initial_guess=None,
+                               weighted=None,
+                               num_sim=2,
+                               prob_mix=0.1,
+                               sorting_method="default",
+                               print_output=False):
+
+        self._initialize_problem_cd(initial_guess=initial_guess,
+                                    weighted=weighted,
+                                    sorting_method=sorting_method)
+
+        sol = solver.solver_com_det(adjacency_matrix=self.aux_adj,
+                                    cluster_assignment=self.init_guess,
+                                    num_sim=num_sim,
+                                    sort_edges=self.sorting_function,
+                                    calculate_surprise=self.surprise_function,
+                                    correct_partition_labeling=self.partition_labeler,
+                                    prob_mix=prob_mix,
+                                    flipping_function=self.flipping_function,
+                                    print_output=print_output)
+
+        self._set_solved_problem(sol)
+
+    def _initialize_problem_cd(self,
+                               initial_guess,
+                               weighted,
+                               sorting_method):
+
+        self._set_initial_guess_cd(initial_guess)
+        if weighted is None:
+            if self.is_weighted:
+                self.aux_adj = self.adjacency_weighted
+                self.method = "weighted"
+            else:
+                self.aux_adj = self.adjacency
+                self.method = "binary"
+        elif weighted:
+            try:
+                self.aux_adj = self.adjacency_weighted
+                self.method = "weighted"
+            except:
+                raise TypeError("You choose weighted comunity detection but the graph you initialised is binary.")
+        else:
+            self.aux_adj = self.adjacency
+            self.method = "binary"
+
+        if (sorting_method == "default") and (self.is_weighted):
+            sorting_method = "random"
+        elif (sorting_method == "default") and (not self.is_weighted):
+            sorting_method = "random"
+
+        sort_func = {
+                     "random": lambda x: AX.shuffled_edges(x, True),
+                     "degrees": None,
+                     "strengths": None,
+                    }
+
+        try:
+            self.sorting_function = sort_func[sorting_method]
+        except:
+            raise ValueError("Sorting method can be 'random', 'degrees' or 'strengths'.")
+
+        surp_fun = {
+                    "binary": lambda x, y: CD.calculate_surprise_logsum_clust_bin(x, y, True),
+                    "weighted": lambda x, y: CD.calculate_surprise_logsum_clust_weigh(x, y, True),
+                    }
+
+        try:
+            self.surprise_function = surp_fun[self.method]
+        except:
+            raise ValueError("Comunity detection method can be 'binary' or 'weighted'.")
+
+        self.flipping_function = lambda x: CD.flipping_function_comdet(x)
+
+        self.partition_labeler = lambda x: CD.labeling_communities(x)
+
+    def _set_initial_guess_cd(self,
+                              initial_guess):
+        if initial_guess is None:
+            self.init_guess = np.array([k for k in range(self.n_nodes)])
+        elif isinstance(initial_guess, np.ndarray):
+            self.init_guess = initial_guess
+        elif isinstance(initial_guess, list):
+            self.init_guess = np.array(initial_guess)
+
+        if self.init_guess.shape[0] != self.n_nodes:
+            raise ValueError("The length of the initial guess provided is different from the network number of nodes.")
+
+    def _set_solved_problem(self, sol):
+        self.solution = sol[0]
+        self.log_surprise = sol[1]
+        self.surprise = np.exp(-self.log_surprise)
