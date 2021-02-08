@@ -1,7 +1,10 @@
 import numpy as np
 from numba import jit
 import scipy
+from scipy.special import comb
 import networkx as nx
+from . import comdet_functions as CD
+
 
 def compute_degree(a, is_directed):
     """returns matrix *a* degree sequence.
@@ -258,3 +261,110 @@ def jaccard_sorted_edges(adjacency_matrix):
     sorted_edges = sorted_edges.astype(np.int)
     return sorted_edges
 
+
+def evaluate_surprise_clust_bin(adjacency_matrix,
+                                cluster_assignment,
+                                is_directed):
+    """Calculates the logarithm of the surprise given the current partitions for a binary network.
+
+    :param adjacency_matrix: Binary adjacency matrix.
+    :type adjacency_matrix: numpy.ndarray
+    :param cluster_assignment: Nodes memberships.
+    :type cluster_assignment: numpy.ndarray
+    :param is_directed: True if the graph is directed.
+    :type is_directed: bool
+    :return: Log-surprise.
+    :rtype: float
+    """
+    if is_directed:
+        # intracluster links
+        p = CD.intracluster_links(adjacency_matrix,
+                                  cluster_assignment)
+        p = int(p)
+        # All the possible intracluster links
+        M = CD.calculate_possible_intracluster_links(cluster_assignment,
+                                                     is_directed)
+        # Observed links
+        m = np.sum(adjacency_matrix.astype(bool))
+        # Possible links
+        n = adjacency_matrix.shape[0]
+        F = n*(n-1)
+    else:
+        # intracluster links
+        p = CD.intracluster_links(adjacency_matrix,
+                                  cluster_assignment)
+        p = int(p/2)
+        # All the possible intracluster links
+        M = int(CD.calculate_possible_intracluster_links(cluster_assignment,
+                                                         is_directed))
+        # Observed links
+        m = np.sum(adjacency_matrix.astype(bool))/2
+        # Possible links
+        n = adjacency_matrix.shape[0]
+        F = int((n*(n-1))/2)
+
+    surprise = surprise_hypergeometric(F, p, M, m)
+    return surprise
+
+
+def surprise_hypergeometric(F, p, M, m):
+    surprise = 0
+    min_p = min(M, m)
+    for p_loop in np.arange(p, min_p+1):
+        surprise += comb(M, p, exact=1) + comb(F-M, m-p, exact=1) - comb(F, m, exact=1)
+
+
+def evaluate_surprise_clust_weigh(adjacency_matrix,
+                                  cluster_assignment,
+                                  is_directed):
+    """Calculates the logarithm of the surprise given the current partitions for a weighted network.
+
+    :param adjacency_matrix: Weighted adjacency matrix.
+    :type adjacency_matrix: numpy.ndarray
+    :param cluster_assignment: Nodes memberships.
+    :type cluster_assignment: numpy.ndarray
+    :param is_directed: True if the graph is directed.
+    :type is_directed: bool
+    :return: Log-surprise.
+    :rtype: float
+    """
+    if is_directed:
+        # intracluster weights
+        w = CD.intracluster_links(adjacency_matrix,
+                               cluster_assignment)
+        # intracluster possible links
+        Vi = CD.calculate_possible_intracluster_links(cluster_assignment,
+                                                   is_directed)
+        # Total Weight
+        W = np.sum(adjacency_matrix)
+        # Possible links
+        n = adjacency_matrix.shape[0]
+        V = n*(n-1)
+        # extracluster links
+        Ve = V-Vi
+    else:
+        # intracluster weights
+        w = CD.intracluster_links(adjacency_matrix,
+                               cluster_assignment)/2
+        # intracluster possible links
+        Vi = CD.calculate_possible_intracluster_links(cluster_assignment,
+                                                   is_directed)
+        # Total Weight
+        W = np.sum(adjacency_matrix)/2
+        # Possible links
+        n = adjacency_matrix.shape[0]
+        V = int((n*(n-1))/2)
+        # extracluster links
+        Ve = V-Vi
+
+    surprise = surprise_negative_hypergeometric(Vi, w, Ve, W, V)
+    return surprise
+
+
+def surprise_negative_hypergeometric(Vi, w, Ve, W, V):
+    """Computes the negative hypergeomtric distribution.
+    """
+    surprise = 0
+    for w_loop in range(w, W):
+        surprise += (comb(Vi+w-1, w, exact=1) * comb(Ve+W-w, W-w, exact=1)) / comb(V+W, W, exact=1)
+    return surprise
