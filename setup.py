@@ -10,10 +10,9 @@ setup(
     version="0.1.0",
     description="bla",
     license="MIT",
-    install_requires=["numpy==1.19.5",
-                      "numba==0.52",
-                      "networkx==2.5",
-                      "scipy==1.6.0",
+    install_requires=["numpy>=1.17",
+                      "networkx>=2.4",
+                      "scipy>=1.4",
                       ],
     extras_require={
         "dev": ["pytest==6.0.1",
