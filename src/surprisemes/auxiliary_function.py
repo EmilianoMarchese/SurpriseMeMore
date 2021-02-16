@@ -22,7 +22,7 @@ def compute_degree(a, is_directed):
             return np.sum(a > 0, 0), np.sum(a > 0, 1)
         # if the matrix is a scipy sparse matrix
         elif type(a) in [scipy.sparse.csr.csr_matrix, scipy.sparse.coo.coo_matrix]:
-            return (np.sum(a > 0, 0).A1), np.sum(a > 0, 1).A1
+            return np.sum(a > 0, 0).A1, np.sum(a > 0, 1).A1
     else:    
         if type(a) == np.ndarray:
             return np.sum(a > 0, 1)
@@ -123,13 +123,7 @@ def check_symmetric(a, is_sparse, rtol=1e-05, atol=1e-08):
     else:    
         return np.allclose(a, a.T, rtol=rtol, atol=atol)
 
-""" 
 
-        adjacency: np.ndarray - Adjacency matrix.
-        is_sparse: boolean - If true the function returns a scipy.sparse
-                 matrix.
-        is_directed: boolean - If true the initialised graph is directed.
-    """
 def check_adjacency(adjacency, is_sparse, is_directed):
     """Functions checking the _validty_ of the adjacency matrix.
 
@@ -254,10 +248,10 @@ def jaccard_sorted_edges(adjacency_matrix):
     jacc = nx.jaccard_coefficient(G, ebunch=G.edges())
     jacc_array = []
     for u, v, p in jacc:
-        jacc_array += [[u,v,p]]
+        jacc_array += [[u, v, p]]
     jacc_array = np.array(jacc_array)
-    jacc_array = jacc_array[jacc_array[:,2].argsort()][::-1]
-    sorted_edges = jacc_array[:,0:2]
+    jacc_array = jacc_array[jacc_array[:, 2].argsort()][::-1]
+    sorted_edges = jacc_array[:, 0:2]
     sorted_edges = sorted_edges.astype(np.int)
     return sorted_edges
 
@@ -311,7 +305,8 @@ def surprise_hypergeometric(F, p, M, m):
     surprise = 0
     min_p = min(M, m)
     for p_loop in np.arange(p, min_p+1):
-        surprise += comb(M, p, exact=1) + comb(F-M, m-p, exact=1) - comb(F, m, exact=1)
+        surprise += (comb(M, p_loop, exact=True) * comb(F-M, m-p_loop, exact=True)) / comb(F, m, exact=True)
+    return surprise
 
 
 def evaluate_surprise_clust_weigh(adjacency_matrix,
@@ -331,10 +326,10 @@ def evaluate_surprise_clust_weigh(adjacency_matrix,
     if is_directed:
         # intracluster weights
         w = CD.intracluster_links(adjacency_matrix,
-                               cluster_assignment)
+                                  cluster_assignment)
         # intracluster possible links
         Vi = CD.calculate_possible_intracluster_links(cluster_assignment,
-                                                   is_directed)
+                                                      is_directed)
         # Total Weight
         W = np.sum(adjacency_matrix)
         # Possible links
@@ -345,10 +340,10 @@ def evaluate_surprise_clust_weigh(adjacency_matrix,
     else:
         # intracluster weights
         w = CD.intracluster_links(adjacency_matrix,
-                               cluster_assignment)/2
+                                  cluster_assignment)/2
         # intracluster possible links
         Vi = CD.calculate_possible_intracluster_links(cluster_assignment,
-                                                   is_directed)
+                                                      is_directed)
         # Total Weight
         W = np.sum(adjacency_matrix)/2
         # Possible links
@@ -362,9 +357,10 @@ def evaluate_surprise_clust_weigh(adjacency_matrix,
 
 
 def surprise_negative_hypergeometric(Vi, w, Ve, W, V):
-    """Computes the negative hypergeomtric distribution.
+    """Computes the negative hypergeometric distribution.
     """
     surprise = 0
     for w_loop in range(w, W):
-        surprise += (comb(Vi+w-1, w, exact=1) * comb(Ve+W-w, W-w, exact=1)) / comb(V+W, W, exact=1)
+        surprise += ((comb(Vi+w_loop-1, w_loop, exact=True) * comb(Ve+W-w_loop, W-w_loop, exact=True)) /
+                     comb(V+W, W, exact=True))
     return surprise
