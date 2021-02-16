@@ -296,4 +296,4 @@ class UndirectedGraph:
     def _set_solved_problem(self, sol):
         self.solution = sol[0]
         self.log_surprise = sol[1]
-        self.surprise = np.exp(-self.log_surprise)
+        self.surprise = 10**(-self.log_surprise)
