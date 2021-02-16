@@ -258,7 +258,7 @@ def flipping_function_comdet(comm):
     labels_set = np.unique(comm)
     node_index = np.random.randint(0, comm.shape[0])
     remaining_labels = labels_set[labels_set != comm[node_index]]
-    if remaining_labels:
+    if remaining_labels.size != 0:
         new_label = np.random.choice(remaining_labels)
         comm[node_index] = new_label
     return comm
