@@ -299,6 +299,12 @@ class DirectedGraph:
                               initial_guess):
         if initial_guess is None:
             self.init_guess = np.array([k for k in range(self.n_nodes)])
+        elif isinstance(initial_guess, str):
+            if initial_guess == "common-neighbours":
+                self.init_guess = AX.common_neigh_init_guess(self.aux_adj)
+            else:
+                raise ValueError("Initial guess can a membership array or an initialisation method,"
+                                 " for more details see documentation.")
         elif isinstance(initial_guess, np.ndarray):
             self.init_guess = initial_guess
         elif isinstance(initial_guess, list):
