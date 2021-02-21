@@ -301,7 +301,7 @@ class DirectedGraph:
             self.init_guess = np.array([k for k in range(self.n_nodes)])
         elif isinstance(initial_guess, str):
             if initial_guess == "common-neighbours":
-                self.init_guess = AX.common_neigh_init_guess(self.aux_adj)
+                self.init_guess = AX.common_neigh_init_guess(self.adjacency)
             else:
                 raise ValueError("Initial guess can a membership array or an initialisation method,"
                                  " for more details see documentation.")
