@@ -1,5 +1,6 @@
 import numpy as np
 from numba import jit
+from numba.typed import List
 from . import auxiliary_function as AX
 
 
@@ -62,7 +63,7 @@ def intracluster_links(adj, partitions):
     return nr_intr_clust_links
 
 
-@jit(nopython=True)                                                
+@jit(nopython=True)
 def intracluster_links_new(adj,
                            clust_labels,
                            partitions):
@@ -76,11 +77,12 @@ def intracluster_links_new(adj,
     :type partitions: numpy.array                                  
     :return: Number of intra-cluster links/weights.                
     :rtype: float                                                  
-    """                                                            
-    nr_intr_clust_links = []              
-    for lab in clust_labels:                                       
+    """
+    # print(clust_labels, clust_labels.shape, partitions)
+    nr_intr_clust_links = np.zeros(clust_labels.shape[0])
+    for ii, lab in enumerate(clust_labels):
         indices = np.where(partitions == lab)[0]                   
-        nr_intr_clust_links.append(intracluster_links_aux(adj, indices))
+        nr_intr_clust_links[ii] = intracluster_links_aux(adj, indices)
     return nr_intr_clust_links     
 
 
@@ -211,7 +213,7 @@ def calculate_surprise_logsum_clust_bin_new(adjacency_matrix,
         n = args[1]
         F = int(args[2]/2)
                                                                                                         
-    surprise = cd.surprise_logsum_Clust_Bin(F, p, M, m)                                                    
+    surprise = surprise_logsum_Clust_Bin(F, p, M, m)
     return surprise, mem_intr_link
 
 
@@ -386,21 +388,24 @@ def flipping_function_comdet_new(adj,
     
     surprise = calculate_surprise_logsum_clust_bin(adjacency_matrix=adj, cluster_assignment=membership, is_directed=is_directed)
     
-    mem_intr_link = np.zeros_like(np.unique(membership))
+    mem_intr_link = np.zeros(membership.shape[0], dtype=np.int32)
+    # print(np.unique(membership), mem_intr_link, membership)
     for ii in np.unique(membership):
         indices = np.where(membership == ii)[0]
         mem_intr_link[ii] = intracluster_links_aux(adj, indices)
 
+    # print("siamo qui")
     for node, node_label in zip(np.arange(membership.shape[0]), membership):
 
         for new_clust in np.unique(membership):
             if node_label != new_clust:
                 aux_membership = membership.copy()
                 aux_membership[node] = new_clust
+                #print(np.array([node_label, new_clust]))
                 temp_surprise, temp_mem_intr_link = calculate_surprise_logsum_clust_bin_new(adjacency_matrix=adj,
                                                                                             cluster_assignment=aux_membership,
                                                                                             mem_intr_link=mem_intr_link.copy(),
-                                                                                            clust_labels=[node_label, new_clust],
+                                                                                            clust_labels=np.array([node_label, new_clust]),
                                                                                             args=args,
                                                                                             is_directed=is_directed)
                 if temp_surprise > surprise:
