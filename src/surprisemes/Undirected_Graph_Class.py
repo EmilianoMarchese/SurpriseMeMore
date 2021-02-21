@@ -1,5 +1,5 @@
 import numpy as np
-import scipy
+from scipy import sparse
 from . import auxiliary_function as AX
 from . import solver
 from . import cp_functions as CP
@@ -36,7 +36,7 @@ class UndirectedGraph:
         if adjacency is not None:
             if not isinstance(
                 adjacency, (list, np.ndarray)
-            ) and not scipy.sparse.isspmatrix(adjacency):
+            ) and not sparse.isspmatrix(adjacency):
                 raise TypeError(
                     "The adjacency matrix must be passed as a list or numpy array or scipy sparse matrix."
                 )
@@ -277,18 +277,25 @@ class UndirectedGraph:
         except:
             raise ValueError("Comunity detection method can be 'binary' or 'weighted'.")
 
-        self.flipping_function = lambda x: CD.flipping_function_comdet(x)
+        # self.flipping_function = lambda x: CD.flipping_function_comdet(x)
+        self.flipping_function = lambda x, y: CD.flipping_function_comdet_new(x, y, False)
 
         self.partition_labeler = lambda x: CD.labeling_communities(x)
 
     def _set_initial_guess_cd(self,
                               initial_guess):
         if initial_guess is None:
-            self.init_guess = np.array([k for k in range(self.n_nodes)])
+            self.init_guess = np.array([k for k in np.arange(self.n_nodes, dtype=np.int32)])
+        elif isinstance(initial_guess, str):
+            if initial_guess == "common-neighbours":
+                self.init_guess = AX.common_neigh_init_guess(self.aux_adj)
+            else:
+                raise ValueError("Initial guess can a membership array or an initialisation method,"
+                                 " for more details see documentation.")
         elif isinstance(initial_guess, np.ndarray):
-            self.init_guess = initial_guess
+            self.init_guess = initial_guess.astype(np.int32)
         elif isinstance(initial_guess, list):
-            self.init_guess = np.array(initial_guess)
+            self.init_guess = np.array(initial_guess).astype(np.int32)
 
         if self.init_guess.shape[0] != self.n_nodes:
             raise ValueError("The length of the initial guess provided is different from the network number of nodes.")

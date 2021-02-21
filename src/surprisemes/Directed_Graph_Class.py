@@ -1,5 +1,5 @@
 import numpy as np
-import scipy
+from scipy import sparse
 from . import auxiliary_function as AX
 from . import solver
 from . import cp_functions as CP
@@ -38,7 +38,7 @@ class DirectedGraph:
         if adjacency is not None:
             if not isinstance(
                 adjacency, (list, np.ndarray)
-            ) and not scipy.sparse.isspmatrix(adjacency):
+            ) and not sparse.isspmatrix(adjacency):
                 raise TypeError(
                     "The adjacency matrix must be passed as a list or numpy array or scipy sparse matrix."
                 )
@@ -290,7 +290,8 @@ class DirectedGraph:
         except:
             raise ValueError("Comunity detection method can be 'binary' or 'weighted'.")
 
-        self.flipping_function = lambda x: CD.flipping_function_comdet(x)
+        #self.flipping_function = lambda x: CD.flipping_function_comdet(x)
+        self.flipping_function = lambda x, y: CD.flipping_function_comdet_new(x, y, True)
 
         self.partition_labeler = lambda x: CD.labeling_communities(x)
 
