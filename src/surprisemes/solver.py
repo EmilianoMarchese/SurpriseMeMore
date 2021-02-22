@@ -175,6 +175,10 @@ def solver_com_det(adjacency_matrix,
             print(surprise)
         sim += 1
 
+    cluster_assignment = flipping_function(adjacency_matrix,
+                                           cluster_assignment.copy())
+
+    """"
     if len(cluster_assignment) <= 500:
         n_flips = 100
     else:
@@ -189,6 +193,7 @@ def solver_com_det(adjacency_matrix,
             cluster_assignment = cluster_assignment_temp.copy()
             surprise = surprise_temp
         flips += 1
+    """
 
     cluster_assignement_proper = correct_partition_labeling(cluster_assignment.copy())
     return cluster_assignement_proper, surprise

@@ -6,8 +6,43 @@ import networkx as nx
 from . import comdet_functions as CD
 
 
+@jit(nopython=True)
+def compute_cn(adjacency):
+    """ Computes common neighbours table, each entry i,j of this table is the number of common neighbours between i and j.
+
+    :param adjacency: Adjacency matrix.
+    :type adjacency: numpy.array
+    :return: Common neighbours table.
+    :rtype: numpy.array
+    """
+    cn_table = np.zeros_like(adjacency)
+    for i in np.arange(adjacency.shape[0]):
+        neighbour_i = (adjacency[i, :] + adjacency[:, i]).astype(np.bool_)
+        for j in np.arange(i+1, adjacency.shape[0]):
+            neighbour_j = (adjacency[j, :] + adjacency[:, j]).astype(np.bool_)
+            cn_table[i,j] = cn_table[j,i] = np.multiply(neighbour_i, neighbour_j).sum()
+    return cn_table
+
+
+@jit(nopython=True)
+def common_neigh_init_guess(adjacency):
+    """Generates a preprocessed initial guess based on the common neighbours of nodes.
+
+    :param adjacency: Adjacency matrix.
+    :type adjacency: numpy.array
+    :return: Initial guess for nodes memberships.
+    :rtype: np.array
+    """
+    cn_table = compute_cn(adjacency)
+    memberships = np.array([k for k in np.arange(adjacency.shape[0], dtype=np.int32)])
+    for ii in np.arange(adjacency.shape[0]):
+        aux_node1 = np.random.choice(memberships)
+        memberships[aux_node1] = memberships[np.argmax(cn_table[aux_node1])]
+    return memberships
+
+
 def compute_degree(a, is_directed):
-    """returns matrix *a* degree sequence.
+    """Returns matrix *a* degree sequence.
 
     :param a: Matrix.
     :type a:  numpy.ndarray
