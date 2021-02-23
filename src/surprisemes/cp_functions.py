@@ -110,7 +110,7 @@ def surprise_bipartite_logsum_CP_Weigh(p, p_c, p_x, p_p, w, w_c, w_x, w_p):
 @jit(nopython=True)
 def logMultiHyperProbabilityWeight(p, p_c, p_x, p_p, w, w_c, w_x, w_p):
     """Computes the logarithm of the Negative Multinomial Hypergeometric distribution."""
-    logH = AX.logC(p_c+w_c-1, w_c) + AX.logC(p_x+w_x-1, w_x) + AX.logC(p_p+w_p-1, w_p) - AX.logC(p+w, w)
+    logH = AX.logc(p_c + w_c - 1, w_c) + AX.logc(p_x + w_x - 1, w_x) + AX.logc(p_p + w_p - 1, w_p) - AX.logc(p + w, w)
     return logH
 
 
@@ -193,7 +193,7 @@ def surprise_bipartite_logsum_CP_Bin(p, p_c, p_x, l, l_c, l_x):
 @jit(nopython=True)
 def logMultiHyperProbability(p, p_c, p_x, l, l_c, l_x):
     """Computes the logarithm of the Multinomial Hypergeometric distribution."""
-    logH = AX.logC(p_c, l_c) + AX.logC(p_x, l_x) + AX.logC(p - p_c - p_x, l-l_c-l_x) - AX.logC(p, l)
+    logH = AX.logc(p_c, l_c) + AX.logc(p_x, l_x) + AX.logc(p - p_c - p_x, l - l_c - l_x) - AX.logc(p, l)
     return logH
 
 
