@@ -178,7 +178,7 @@ def solver_com_det(
                     temp_surprise, temp_mem_intr_link = calculate_surprise(
                         adjacency_matrix,
                         cluster_assignement_temp,
-                        mem_intr_link,
+                        mem_intr_link.copy(),
                         np.array([clus_u, clus_v]),
                         args,
                         is_directed)
@@ -190,7 +190,7 @@ def solver_com_det(
                     temp_surprise, temp_mem_intr_link = calculate_surprise(
                         adjacency_matrix,
                         cluster_assignement_temp,
-                        mem_intr_link,
+                        mem_intr_link.copy(),
                         np.array([clus_u, clus_v]),
                         args,
                         is_directed)
@@ -204,7 +204,7 @@ def solver_com_det(
                     temp_surprise, temp_mem_intr_link = calculate_surprise(
                         adjacency_matrix,
                         cluster_assignement_temp,
-                        mem_intr_link,
+                        mem_intr_link.copy(),
                         np.array([clus_u, clus_v]),
                         args,
                         is_directed)
