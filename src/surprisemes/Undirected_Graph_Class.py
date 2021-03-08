@@ -227,38 +227,58 @@ class UndirectedGraph:
                 " the network number of nodes.")
 
     def run_comunity_detection(self,
+                               method="aglomerative",
                                initial_guess=None,
                                weighted=None,
                                num_sim=2,
+                               num_clusters=None,
                                prob_mix=0.1,
                                sorting_method="default",
                                print_output=False):
 
         self._initialize_problem_cd(
+            method=method,
+            num_clusters=num_clusters,
             initial_guess=initial_guess,
             weighted=weighted,
             sorting_method=sorting_method)
 
-        sol = solver.solver_com_det(
-            adjacency_matrix=self.aux_adj,
-            cluster_assignment=self.init_guess,
-            num_sim=num_sim,
-            sort_edges=self.sorting_function,
-            calculate_surprise=self.surprise_function,
-            correct_partition_labeling=self.partition_labeler,
-            prob_mix=prob_mix,
-            flipping_function=self.flipping_function,
-            is_directed=False,
-            print_output=print_output)
+        if method == "aglomerative":
+            sol = solver.solver_com_det_aglom(
+                adjacency_matrix=self.aux_adj,
+                cluster_assignment=self.init_guess,
+                num_sim=num_sim,
+                sort_edges=self.sorting_function,
+                calculate_surprise=self.surprise_function,
+                correct_partition_labeling=self.partition_labeler,
+                prob_mix=prob_mix,
+                flipping_function=self.flipping_function,
+                is_directed=False,
+                print_output=print_output)
+        elif method == "divisive":
+            sol = solver.solver_com_det_divis(
+                adjacency_matrix=self.aux_adj,
+                cluster_assignment=self.init_guess,
+                num_sim=num_sim,
+                sort_edges=self.sorting_function,
+                calculate_surprise=self.surprise_function,
+                correct_partition_labeling=self.partition_labeler,
+                flipping_function=self.flipping_function,
+                is_directed=False,
+                print_output=print_output)
+        else:
+            raise ValueError("Method can be 'aglomerative' or 'divisive'.")
 
         self._set_solved_problem(sol)
 
     def _initialize_problem_cd(self,
+                               method,
+                               num_clusters,
                                initial_guess,
                                weighted,
                                sorting_method):
 
-        self._set_initial_guess_cd(initial_guess)
+        self._set_initial_guess_cd(method, num_clusters, initial_guess)
         if weighted is None:
             if self.is_weighted:
                 self.aux_adj = self.adjacency_weighted
@@ -285,14 +305,13 @@ class UndirectedGraph:
         sort_func = {
             "random": lambda x: ax.shuffled_edges(x, False),
             "jaccard": lambda x: ax.jaccard_sorted_edges(x),
-            "degrees": None,
             "strengths": None,
         }
 
         try:
             self.sorting_function = sort_func[sorting_method]
         except:
-            raise ValueError("Sorting method can be 'random', 'degrees',"
+            raise ValueError("Sorting method can be 'random',"
                              " 'strengths' or 'jaccard'.")
 
         surp_fun = {
@@ -300,11 +319,7 @@ class UndirectedGraph:
             "weighted": cd.calculate_surprise_logsum_clust_weigh_new,
         }
 
-        try:
-            self.surprise_function = surp_fun[self.method]
-        except:
-            raise ValueError("Comunity detection method can be 'binary' or"
-                             " 'weighted'.")
+        self.surprise_function = surp_fun[self.method]
 
         # self.flipping_function = lambda x: CD.flipping_function_comdet(x)
         self.flipping_function = lambda x, y: cd.flipping_function_comdet_new(
@@ -315,17 +330,34 @@ class UndirectedGraph:
         self.partition_labeler = lambda x: cd.labeling_communities(x)
 
     def _set_initial_guess_cd(self,
+                              method,
+                              num_clusters,
                               initial_guess):
-        if initial_guess is None:
+        if num_clusters is None and method == "divisive":
+            raise ValueError("When 'divisive' is passed as clustering 'method'"
+                             " 'num_clusters' argument must be specified.")
+
+        if initial_guess is None and method == "aglomerative":
             self.init_guess = np.array(
                 [k for k in np.arange(self.n_nodes, dtype=np.int32)])
+        elif initial_guess is None and method == "divisive":
+            self.init_guess = np.random.randint(
+                low=num_clusters,
+                size=self.n_nodes)
         elif isinstance(initial_guess, str):
-            if initial_guess == "common-neighbours":
+            if (initial_guess == "common-neighbours" and
+                    method == "aglomerative"):
                 self.init_guess = ax.common_neigh_init_guess(self.adjacency)
+            elif (initial_guess == "common-neighbours" and
+                    method == "divisive"):
+                self.init_guess = ax.fixed_clusters_init_guess_cn(
+                    adjacency=self.adjacency,
+                    n_clust=num_clusters)
             else:
                 raise ValueError(
-                    "Initial guess can a membership array or an initialisation"
-                    " method, for more details see documentation.")
+                    "Initial guess can be an array specifying nodes membership"
+                    " or an initialisation method ['common-neighbours']."
+                    " For more details see documentation.")
         elif isinstance(initial_guess, np.ndarray):
             self.init_guess = initial_guess.astype(np.int32)
         elif isinstance(initial_guess, list):
@@ -335,6 +367,12 @@ class UndirectedGraph:
             raise ValueError(
                 "The length of the initial guess provided is different from"
                 " the network number of nodes.")
+
+        if (method == "divisive" and
+                np.unique(self.init_guess).shape[0] != num_clusters):
+            raise ValueError("The number of clusters of a custom initial guess"
+                             " must coincide with 'num_clusters' for the "
+                             " divisive method.")
 
     def _set_solved_problem(self, sol):
         self.solution = sol[0]

@@ -8,7 +8,7 @@ def calculate_possible_intracluster_links(partitions, is_directed):
     """Computes the number of possible links, given nodes memberships.
 
     :param partitions: Nodes memberships.
-    :type partitions: numpy.array
+    :type partitions: numpy.ndarray
     :param is_directed: True if the graph is directed.
     :type is_directed: bool
     :return: Total number of possible edges.
@@ -28,7 +28,7 @@ def calculate_possible_intracluster_links_new(partitions, is_directed):
     Faster implementation compiled in "nopython" mode.
 
     :param partitions: Nodes memberships.
-    :type partitions: numpy.array
+    :type partitions: numpy.ndarray
     :param is_directed: True if the graph is directed.
     :type is_directed: bool
     :return: Total number of possible edges.
@@ -47,9 +47,9 @@ def intracluster_links(adj, partitions):
     """Computes intracluster links or weights.
 
     :param adj: Adjacency matrix.
-    :type adj: numpy.array
+    :type adj: numpy.ndarray
     :param partitions: Nodes memberships.
-    :type partitions: numpy.array
+    :type partitions: numpy.ndarray
     :return: Number of intra-cluster links/weights.
     :rtype: float
     """
@@ -66,13 +66,13 @@ def intracluster_links_new(adj, clust_labels, partitions):
     """Computes intracluster links or weights. New implementation
 
     :param adj: Adjacency matrix.
-    :type adj: numpy.array
+    :type adj: numpy.ndarray
     :param clust_labels: Labels of changed clusters.
-    :type clust_labels: numpy.array
+    :type clust_labels: numpy.ndarray
     :param partitions: Nodes memberships.
-    :type partitions: numpy.array                                  
+    :type partitions: numpy.ndarray
     :return: Number of intra-cluster links/weights.                
-    :rtype: numpy.array
+    :rtype: numpy.ndarray
     """
     # print(clust_labels, clust_labels.shape, partitions)
     nr_intr_clust_links = np.zeros(clust_labels.shape[0])
@@ -107,9 +107,9 @@ def calculate_surprise_logsum_clust_bin(adjacency_matrix,
     for a binary network.
 
     :param adjacency_matrix: Binary adjacency matrix.
-    :type adjacency_matrix: numpy.array
+    :type adjacency_matrix: numpy.ndarray
     :param cluster_assignment: Nodes memberships.
-    :type cluster_assignment: numpy.array
+    :type cluster_assignment: numpy.ndarray
     :param is_directed: True if the graph is directed.
     :type is_directed: bool
     :return: Log-surprise.
@@ -166,9 +166,9 @@ def calculate_surprise_logsum_clust_bin_new(
     New faster implementation reducing the number of redundant computations.
 
     :param adjacency_matrix: Binary adjacency matrix.
-    :type adjacency_matrix: numpy.array
+    :type adjacency_matrix: numpy.ndarray
     :param cluster_assignment: Nodes memberships.                                                       
-    :type cluster_assignment: numpy.array
+    :type cluster_assignment: numpy.ndarray
     :param mem_intr_link: Intracluster links per cluster
     :type mem_intr_link: np.array
     :param clust_labels: Labels of changed clusters.
@@ -480,9 +480,9 @@ def labeling_communities(partitions):
     """Gives labels to communities from 0 to number of communities minus one.
 
     :param partitions: Nodes memberships.
-    :type partitions: numpy.array
+    :type partitions: numpy.ndarray
     :return: Re-labeled nodes memberships.
-    :rtype: numpy.array
+    :rtype: numpy.ndarray
     """
     different_partitions = np.unique(partitions, return_counts=True)
     aux_argsort = np.argsort(different_partitions[1])[::-1]
@@ -501,9 +501,9 @@ def flipping_function_comdet(comm):
     """Changes the membership of a randomly selected node.
 
     :param comm: Nodes memberships.
-    :type comm: numpy.array
+    :type comm: numpy.ndarray
     :return: New nodes memberships.
-    :rtype: numpy.array
+    :rtype: numpy.ndarray
     """
     labels_set = np.unique(comm)
     node_index = np.random.randint(0, comm.shape[0])
