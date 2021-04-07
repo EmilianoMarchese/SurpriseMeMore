@@ -10,7 +10,7 @@ from . import solver
 class DirectedGraph:
     def __init__(
             self,
-            adjacency,
+            adjacency=None,
             edgelist=None,
     ):
         self.n_nodes = None
@@ -141,7 +141,7 @@ class DirectedGraph:
         self.is_initialized = False
 
     def run_cp_detection(self,
-                         initial_guess=None,
+                         initial_guess="random",
                          weighted=None,
                          num_sim=2,
                          sorting_method="default",
@@ -181,7 +181,7 @@ class DirectedGraph:
             try:
                 self.aux_adj = self.adjacency_weighted
                 self.method = "weighted"
-            except:
+            except Exception:
                 raise TypeError(
                     "You choose weighted core peryphery detection but the"
                     " graph you initialised is binary.")
@@ -202,7 +202,7 @@ class DirectedGraph:
 
         try:
             self.sorting_function = sort_func[sorting_method]
-        except:
+        except Exception:
             raise ValueError(
                 "Sorting method can be 'random', 'degrees' or 'strengths'.")
 
@@ -219,7 +219,7 @@ class DirectedGraph:
 
         try:
             self.surprise_function = surp_fun[self.method]
-        except:
+        except Exception:
             raise ValueError("CP method can be 'binary' or 'weighted'.")
 
         self.flipping_function = lambda x: cp.flipping_function_cp(x, 1)
@@ -227,16 +227,36 @@ class DirectedGraph:
         self.partition_labeler = lambda x, y: cp.labeling_core_periphery(x, y)
 
     def _set_initial_guess_cp(self, initial_guess):
-        if initial_guess is None:
-            self.init_guess = np.ones(self.n_nodes, dtype=int)
-            if self.is_weighted:
-                self.init_guess[self.strength_sequence_out.argsort()[-3:]] = 0
+        # TODO: Sistemare parte pesata
+        if isinstance(initial_guess, str):
+            if initial_guess == "random":
+                self.init_guess = np.ones(self.n_nodes, dtype=np.int32)
+                aux_n = int(np.ceil((5 * self.n_nodes) / 100))
+                if self.is_weighted:
+                    self.init_guess[
+                        self.strength_sequence_out.argsort()[-aux_n:]] = 0
+                else:
+                    self.init_guess[
+                        self.degree_sequence_out.argsort()[-aux_n:]] = 0
+            elif initial_guess == "eigenvector":
+                self.initial_guess = ax.eigenvector_init_guess(self.adjacency,
+                                                               False)
             else:
-                self.init_guess[self.degree_sequence_out.argsort()[-3:]] = 0
+                raise ValueError("Valid values of initial guess are 'random', "
+                                 "eigenvector or a custom initial guess ("
+                                 "np.ndarray or list).")
+
         elif isinstance(initial_guess, np.ndarray):
             self.init_guess = initial_guess
         elif isinstance(initial_guess, list):
             self.init_guess = np.array(initial_guess)
+
+        if np.unique(self.init_guess).shape[0] != 2:
+            raise ValueError("The custom initial_guess passed is not valid."
+                             " The initial guess for core-periphery detection"
+                             " must have nodes' membership that are 0 and 1."
+                             " Pay attention that at least one node has to "
+                             "belong to the core (0) or the periphery (1).")
 
         if self.init_guess.shape[0] != self.n_nodes:
             raise ValueError(
@@ -307,7 +327,7 @@ class DirectedGraph:
             try:
                 self.aux_adj = self.adjacency_weighted
                 self.method = "weighted"
-            except:
+            except Exception:
                 raise TypeError(
                     "You choose weighted comunity detection but the graph"
                     " you initialised is binary.")
@@ -327,7 +347,7 @@ class DirectedGraph:
 
         try:
             self.sorting_function = sort_func[sorting_method]
-        except:
+        except Exception:
             raise ValueError(
                 "Sorting method can be 'random' or 'strengths'.")
 
@@ -351,28 +371,32 @@ class DirectedGraph:
 
         if num_clusters is None and method == "divisive":
             raise ValueError("When 'divisive' is passed as clustering 'method'"
-                             " 'num_clusters' argument must be specified.")
+                             " the 'num_clusters' argument must be specified.")
 
-        if initial_guess is None and method == "aglomerative":
-            self.init_guess = np.array([k for k in range(self.n_nodes)])
-        elif initial_guess is None and method is "divisive":
-            self.init_guess = np.random.randint(
-                low=num_clusters,
-                size=self.n_nodes)
-        elif isinstance(initial_guess, str):
-            if (initial_guess == "common-neighbours" and
-                    method == "aglomerative"):
-                self.init_guess = ax.common_neigh_init_guess(self.adjacency)
-            elif (initial_guess == "common-neighbours" and
-                  method == "divisive"):
-                self.init_guess = ax.fixed_clusters_init_guess_cn(
-                    adjacency=self.adjacency,
-                    n_clust=num_clusters)
+        if isinstance(initial_guess, str):
+            if initial_guess == "random":
+                if method == "aglomerative":
+                    self.init_guess = np.array(
+                        [k for k in np.arange(self.n_nodes, dtype=np.int32)])
+                elif method == "divisive":
+                    self.init_guess = np.random.randint(
+                        low=num_clusters,
+                        size=self.n_nodes)
+            elif initial_guess == "common-neighbours":
+                if method == "aglomerative":
+                    self.init_guess = ax.common_neigh_init_guess(
+                        self.adjacency)
+                elif method == "divisive":
+                    self.init_guess = ax.fixed_clusters_init_guess_cn(
+                        adjacency=self.adjacency,
+                        n_clust=num_clusters)
             else:
                 raise ValueError(
+                    "The 'initial_guess' selected is not a valid."
                     "Initial guess can be an array specifying nodes membership"
-                    " or an initialisation method ['common-neighbours']."
-                    " For more details see documentation.")
+                    " or an initialisation method ['common-neighbours',"
+                    " random]. For more details see documentation.")
+
         elif isinstance(initial_guess, np.ndarray):
             self.init_guess = initial_guess
         elif isinstance(initial_guess, list):
@@ -386,8 +410,8 @@ class DirectedGraph:
         if (method == "divisive" and
                 np.unique(self.init_guess).shape[0] != num_clusters):
             raise ValueError("The number of clusters of a custom initial guess"
-                             " must coincide with 'num_clusters' for the "
-                             " divisive method.")
+                             " must coincide with 'num_clusters' when the "
+                             " divisive method is applied.")
 
     def _set_solved_problem(self, sol):
         self.solution = sol[0]

@@ -162,8 +162,9 @@ def calculate_surprise_logsum_clust_bin_new(
         clust_labels,
         args,
         is_directed):
-    """Calculates the logarithm of the surprise given the current partitions for a binary network.
-    New faster implementation reducing the number of redundant computations.
+    """Calculates the logarithm of the surprise given the current partitions
+     for a binary network. New faster implementation reducing the number of
+      redundant computations.
 
     :param adjacency_matrix: Binary adjacency matrix.
     :type adjacency_matrix: numpy.ndarray
@@ -397,7 +398,7 @@ def calculate_surprise_logsum_clust_weigh_new(
                 mem_intr_link[node_label] = nr_links
 
         p = np.sum(mem_intr_link)
-        intr_weights = int(p/2)
+        intr_weights = int(p / 2)
         # intracluster possible links
         poss_intr_links = calculate_possible_intracluster_links(
             cluster_assignment,
@@ -439,7 +440,7 @@ def surprise_logsum_clust_weigh(Vi, w, Ve, W, V):
 
     logP = lognegativehyperprobability(Vi, w, Ve, W, V)
     for w_loop in range(w, W):
-        if (w_loop == w):
+        if w_loop == w:
             continue
         nextLogP = lognegativehyperprobability(Vi, w_loop, Ve, W, V)
         [logP, stop] = ax.sumLogProbabilities(nextLogP, logP)

@@ -165,7 +165,7 @@ def solver_com_det_aglom(
         previous_surprise = surprise
         e_sorted = sort_edges(adjacency_matrix)
         # print(cluster_assignment)
-        # print(E_sorted)
+        # print(e_sorted)
         for [u, v] in e_sorted:
             if cluster_assignment[u] != cluster_assignment[v]:
                 clus_u = cluster_assignment[u]
@@ -230,23 +230,6 @@ def solver_com_det_aglom(
     cluster_assignment = flipping_function(
         adjacency_matrix,
         cluster_assignment.copy())
-
-    """"
-    if len(cluster_assignment) <= 500:
-        n_flips = 100
-    else:
-        n_flips = int(len(cluster_assignment) * 0.2)
-
-    flips = 0
-    while(flips < n_flips):
-        cluster_assignment_temp = flipping_function(cluster_assignment.copy())
-        surprise_temp = calculate_surprise(adjacency_matrix,
-                                           cluster_assignment_temp)
-        if (surprise_temp > surprise):
-            cluster_assignment = cluster_assignment_temp.copy()
-            surprise = surprise_temp
-        flips += 1
-    """
 
     cluster_assignement_proper = correct_partition_labeling(
         cluster_assignment.copy())
@@ -406,9 +389,6 @@ def solver_com_det_divis(
     return cluster_assignement_proper, surprise
 
 
-
-
-
 def solver_com_det_old(
         adjacency_matrix,
         cluster_assignment,
@@ -436,6 +416,8 @@ def solver_com_det_old(
     :param prob_mix: [description]
     :type prob_mix: [type]
     :param print_output: [description], defaults to False
+    :param flipping_function:
+    :type flipping_function:
     :type print_output: bool, optional
     :return: [description]
     :rtype: [type]
@@ -446,27 +428,29 @@ def solver_com_det_old(
     contatore_break = 0
 
     sim = 0
-    while (sim < num_sim):
+    while sim < num_sim:
         previous_surprise = surprise
-        E_sorted = sort_edges(adjacency_matrix)
+        e_sorted = sort_edges(adjacency_matrix)
         # print(cluster_assignment)
-        # print(E_sorted)
-        for [u, v] in E_sorted:
+        # print(e_sorted)
+        for [u, v] in e_sorted:
             if cluster_assignment[u] != cluster_assignment[v]:
                 cluster_assignement_temp = cluster_assignment.copy()
                 random_number = np.random.uniform()
                 if (random_number > prob_mix) & (
                         random_number <= (prob_mix + prob_random)):
                     cluster_assignement_temp[v] = cluster_assignment[u]
-                    temp_surprise = calculate_surprise(adjacency_matrix,
-                                                       cluster_assignement_temp)
+                    temp_surprise = calculate_surprise(
+                        adjacency_matrix,
+                        cluster_assignement_temp)
                     # print(cluster_assignement_temp, cluster_assignment)
                     # print("prob_1", u, v, temp_surprise, surprise)
-                elif (random_number > (prob_mix + prob_random)):
+                elif random_number > (prob_mix + prob_random):
 
                     cluster_assignement_temp[u] = cluster_assignment[v]
-                    temp_surprise = calculate_surprise(adjacency_matrix,
-                                                       cluster_assignement_temp)
+                    temp_surprise = calculate_surprise(
+                        adjacency_matrix,
+                        cluster_assignement_temp)
                     # print(cluster_assignement_temp, cluster_assignment)
                     # print("prob_2", u, v, temp_surprise, surprise)
                 else:
@@ -474,8 +458,9 @@ def solver_com_det_old(
                     cluster_assignement_temp[
                         cluster_assignement_temp == aux_cluster] = \
                         cluster_assignement_temp[v]
-                    temp_surprise = calculate_surprise(adjacency_matrix,
-                                                       cluster_assignement_temp)
+                    temp_surprise = calculate_surprise(
+                        adjacency_matrix,
+                        cluster_assignement_temp)
                     # print(cluster_assignement_temp, cluster_assignment)
                     # print("mixing", u, v, temp_surprise, surprise)
 
@@ -495,23 +480,6 @@ def solver_com_det_old(
 
     cluster_assignment = flipping_function(adjacency_matrix,
                                            cluster_assignment.copy())
-
-    """"
-    if len(cluster_assignment) <= 500:
-        n_flips = 100
-    else:
-        n_flips = int(len(cluster_assignment) * 0.2)
-
-    flips = 0
-    while(flips < n_flips):
-        cluster_assignment_temp = flipping_function(cluster_assignment.copy())
-        surprise_temp = calculate_surprise(adjacency_matrix,
-                                           cluster_assignment_temp)
-        if (surprise_temp > surprise):
-            cluster_assignment = cluster_assignment_temp.copy()
-            surprise = surprise_temp
-        flips += 1
-    """
 
     cluster_assignement_proper = correct_partition_labeling(
         cluster_assignment.copy())
