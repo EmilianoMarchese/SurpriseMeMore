@@ -14,9 +14,9 @@ def compute_cn(adjacency):
      number of common neighbours between i and j.
 
     :param adjacency: Adjacency matrix.
-    :type adjacency: numpy.array
+    :type adjacency: numpy.ndarray
     :return: Common neighbours table.
-    :rtype: numpy.array
+    :rtype: numpy.ndarray
     """
     cn_table = np.zeros_like(adjacency)
     for i in np.arange(adjacency.shape[0]):
@@ -34,7 +34,7 @@ def common_neigh_init_guess(adjacency):
      of nodes.
 
     :param adjacency: Adjacency matrix.
-    :type adjacency: numpy.array
+    :type adjacency: numpy.ndarray
     :return: Initial guess for nodes memberships.
     :rtype: np.array
     """
@@ -45,6 +45,72 @@ def common_neigh_init_guess(adjacency):
         aux_node1 = np.random.choice(memberships)
         memberships[aux_node1] = memberships[np.argmax(cn_table[aux_node1])]
     return memberships
+
+
+def eigenvector_init_guess(adjacency, is_directed):
+    """Generates an initial guess for core periphery detection method: nodes
+    with higher eigenvector centrality are in the core.
+
+    :param adjacency: Adjacency matrix.
+    :type adjacency: np.ndarray
+    :param is_directed: True if the network is directed.
+    :type is_directed: bool
+    :return: Initial guess.
+    :rtype: np.ndarray
+    """
+    # TODO: Vedere come funziona la parte pesata
+
+    n_nodes = adjacency.shape[0]
+    aux_nodes = int(np.ceil((n_nodes * 5) / 100))
+    if is_directed:
+        graph = nx.from_numpy_array(adjacency, create_using=nx.DiGraph)
+        centra = nx.eigenvector_centrality_numpy(graph)
+        centra1 = np.array([centra[key] for key in centra])
+        membership = np.zeros_like(centra1, dtype=np.int32)
+        membership[np.argsort(centra1)[::-1][:aux_nodes]] = 1
+
+    else:
+        graph = nx.from_numpy_array(adjacency, create_using=nx.Graph)
+        centra = nx.eigenvector_centrality_numpy(graph)
+        centra1 = np.array([centra[key] for key in centra])
+        membership = np.zeros_like(centra1, dtype=np.int32)
+        print(aux_nodes)
+        print(membership[np.argsort(centra1)[::-1]][:aux_nodes])
+        membership[np.argsort(centra1)[::-1][:aux_nodes]] = 1
+
+    return membership
+
+
+def fixed_clusters_init_guess_cn(adjacency, n_clust):
+    """ Generates an intial guess with a fixed number 'n' of clusters.
+    Nodes are organised in clusters based on the number of common neighbors.
+    The starting members of clusters are the 'n' nodes with higher
+    degrees/strengths.
+
+    :param adjacency: Adjacency matrix.
+    :type adjacency: numpy.ndarray
+    :param n_clust: Partitions number.
+    :type n_clust: int
+    :return: Initial guess.
+    :rtype: numpy.ndarray
+    """
+    aux_memb = np.ones(adjacency.shape[0], dtype=np.int32) * n_clust
+    deg = adjacency.sum(axis=1)
+    aux_args_sort = np.argsort(deg)[::-1][0:n_clust]
+    for memb, index in enumerate(aux_args_sort):
+        aux_memb[index] = memb
+
+    common_neigh = compute_cn(adjacency)
+    aux = np.nonzero(aux_memb == n_clust)[0]
+    np.random.shuffle(aux)
+    for node in aux:
+        aux_list = np.nonzero(aux_memb != n_clust)[0]
+        node_index = aux_list[np.argmax(common_neigh[node, aux_list])]
+        if isinstance(node_index, np.ndarray):
+            node_index = np.random.choice(node_index)
+        aux_memb[node] = aux_memb[node_index]
+
+    return aux_memb
 
 
 def compute_degree(a, is_directed):
@@ -279,7 +345,7 @@ def shuffled_edges(adjacency_matrix, is_directed):
         adj = np.triu(adj)
     edges = np.stack(adj.nonzero(), axis=-1)
     np.random.shuffle(edges)
-    shuff_edges = edges.astype(int)
+    shuff_edges = edges.astype(np.int32)
     return shuff_edges
 
 
