@@ -1,5 +1,7 @@
 from setuptools import setup
 
+with open('README.md', "r", encoding="utf-8") as fh:
+    long_description = fh.read()
 
 setup(
     name="surprisemes",
@@ -8,11 +10,28 @@ setup(
     packages=["surprisemes"],
     package_dir={'': 'src'},
     version="0.1.0",
-    description="bla",
+    description="Surprisemes is a python module providing methods, based on"
+                " the surprise framework, to detect mesoscale structures in"
+                " graphs and multigraphs.",
+    long_description=long_description,
+    long_description_content_type="text/markdown",
     license="MIT",
-    install_requires=["numpy>=1.17",
-                      "networkx>=2.4",
-                      "scipy>=1.4",
+    url="",
+    download_url="",
+    keywords=['community detection', 'core-periphery detection',
+              'graphs', "multi-graphs", "weighted graphs", "surprise"],
+    classifiers=[
+                "License :: OSI Approved :: MIT License",
+                'Programming Language :: Python :: 3.6',
+                'Programming Language :: Python :: 3.7',
+                'Programming Language :: Python :: 3.8',
+                ],
+
+    install_requires=[
+        "numpy>=1.17",
+        "networkx>=2.4",
+        "scipy>=1.4",
+        "numba>=0.47"
                       ],
     extras_require={
         "dev": ["pytest==6.0.1",

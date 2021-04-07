@@ -1,16 +1,17 @@
 import numpy as np
 from scipy import sparse
-from . import auxiliary_function as AX
+
+from . import auxiliary_function as ax
+from . import comdet_functions as cd
+from . import cp_functions as cp
 from . import solver
-from . import cp_functions as CP
-from . import comdet_functions as CD
 
 
 class DirectedGraph:
     def __init__(
-        self,
-        adjacency,
-        edgelist=None,
+            self,
+            adjacency=None,
+            edgelist=None,
     ):
         self.n_nodes = None
         self.n_edges = None
@@ -30,24 +31,25 @@ class DirectedGraph:
         )
 
     def _initialize_graph(
-        self,
-        adjacency=None,
-        edgelist=None,
+            self,
+            adjacency=None,
+            edgelist=None,
     ):
 
         if adjacency is not None:
             if not isinstance(
-                adjacency, (list, np.ndarray)
+                    adjacency, (list, np.ndarray)
             ) and not sparse.isspmatrix(adjacency):
                 raise TypeError(
-                    "The adjacency matrix must be passed as a list or numpy array or scipy sparse matrix."
+                    "The adjacency matrix must be passed as a list or numpy"
+                    " array or scipy sparse matrix."
                 )
             if isinstance(
-                adjacency, list
+                    adjacency, list
             ):
                 self.adjacency = np.array(adjacency)
             elif isinstance(
-                adjacency, np.ndarray
+                    adjacency, np.ndarray
             ):
                 self.adjacency = adjacency
             else:
@@ -60,56 +62,66 @@ class DirectedGraph:
                 )
             elif len(edgelist) > 0:
                 if len(edgelist[0]) == 2:
-                    self.adjacency = AX.from_edgelist(edgelist,
+                    self.adjacency = ax.from_edgelist(edgelist,
                                                       self.is_sparse,
                                                       True)
                     self.edgelist = edgelist
                 elif len(edgelist[0]) == 3:
-                    self.adjacency = AX.from_weighted_edgelist(edgelist,
+                    self.adjacency = ax.from_weighted_edgelist(edgelist,
                                                                self.is_sparse,
                                                                True)
                     self.edgelist = edgelist
                 else:
                     raise ValueError(
-                        "This is not an edgelist. An edgelist must be a list or array of couples of nodes with optional weights. Is this an adjacency matrix?"
+                        "This is not an edgelist. An edgelist must be a list"
+                        " or array of couples of nodes with optional weights."
+                        " Is this an adjacency matrix?"
                     )
         else:
-            raise TypeError("UndirectedGraph is missing one positional argument adjacency.")
+            raise TypeError(
+                "UndirectedGraph is missing one positional argument"
+                " adjacency.")
 
-        AX.check_adjacency(self.adjacency, self.is_sparse, True)
+        ax.check_adjacency(self.adjacency, self.is_sparse, True)
         if np.sum(self.adjacency) == np.sum(self.adjacency > 0):
-            self.degree_sequence_in, self.degree_sequence_out = AX.compute_degree(
-                                                     self.adjacency,
-                                                     True
-                                                     )
-            self.degree_sequence_in = self.degree_sequence_in.astype(np.int64)
-            self.degree_sequence_out = self.degree_sequence_out.astype(np.int64)
-        else:
-            self.degree_sequence_in, self.degree_sequence_out = AX.compute_degree(
-                                                     self.adjacency,
-                                                     True
-                                                     )
-            self.degree_sequence_in = self.degree_sequence_in.astype(np.int64)
-            self.degree_sequence_out = self.degree_sequence_out.astype(np.int64)
-
-            self.strength_sequence_in, self.strength_sequence_out = AX.compute_strength(
+            self.degree_sequence_in, self.degree_sequence_out = ax.compute_degree(
                 self.adjacency,
                 True
-                )
-            self.strength_sequence_in = self.strength_sequence_in.astype(np.float64)
-            self.strength_sequence_out = self.strength_sequence_out.astype(np.float64)
+            )
+            self.degree_sequence_in = self.degree_sequence_in.astype(np.int64)
+            self.degree_sequence_out = self.degree_sequence_out.astype(
+                np.int64)
+        else:
+            self.degree_sequence_in, self.degree_sequence_out = ax.compute_degree(
+                self.adjacency,
+                True
+            )
+            self.degree_sequence_in = self.degree_sequence_in.astype(np.int64)
+            self.degree_sequence_out = self.degree_sequence_out.astype(
+                np.int64)
+
+            self.strength_sequence_in, self.strength_sequence_out = ax.compute_strength(
+                self.adjacency,
+                True
+            )
+            self.strength_sequence_in = self.strength_sequence_in.astype(
+                np.float64)
+            self.strength_sequence_out = self.strength_sequence_out.astype(
+                np.float64)
 
             self.adjacency_weighted = self.adjacency
-            self.adjacency = (self.adjacency_weighted.astype(bool)).astype(np.int16)
+            self.adjacency = (self.adjacency_weighted.astype(bool)).astype(
+                np.int16)
             self.is_weighted = True
         self.n_nodes = len(self.degree_sequence_out)
-        self.n_edges = int(np.sum(self.degree_sequence_out)/2)
+        self.n_edges = int(np.sum(self.degree_sequence_out) / 2)
         self.is_initialized = True
 
     def set_adjacency_matrix(self, adjacency):
         if self.is_initialized:
             raise ValueError(
-                "Graph already contains edges or has a degree sequence. Use 'clean_edges()' first."
+                "Graph already contains edges or has a degree sequence."
+                " Use 'clean_edges()' first."
             )
         else:
             self._initialize_graph(adjacency=adjacency)
@@ -117,7 +129,8 @@ class DirectedGraph:
     def set_edgelist(self, edgelist):
         if self.is_initialized:
             raise ValueError(
-                "Graph already contains edges or has a degree sequence. Use 'clean_edges()' first."
+                "Graph already contains edges or has a degree sequence."
+                " Use 'clean_edges()' first."
             )
         else:
             self._initialize_graph(edgelist=edgelist)
@@ -128,24 +141,26 @@ class DirectedGraph:
         self.is_initialized = False
 
     def run_cp_detection(self,
-                         initial_guess=None,
+                         initial_guess="random",
                          weighted=None,
                          num_sim=2,
                          sorting_method="default",
                          print_output=False):
 
-        self._initialize_problem_cp(initial_guess=initial_guess,
-                                    weighted=weighted,
-                                    sorting_method=sorting_method)
+        self._initialize_problem_cp(
+            initial_guess=initial_guess,
+            weighted=weighted,
+            sorting_method=sorting_method)
 
-        sol = solver.solver_cp(adjacency_matrix=self.aux_adj,
-                               cluster_assignment=self.init_guess,
-                               num_sim=num_sim,
-                               sort_edges=self.sorting_function,
-                               calculate_surprise=self.surprise_function,
-                               correct_partition_labeling=self.partition_labeler,
-                               flipping_function=self.flipping_function,
-                               print_output=print_output)
+        sol = solver.solver_cp(
+            adjacency_matrix=self.aux_adj,
+            cluster_assignment=self.init_guess,
+            num_sim=num_sim,
+            sort_edges=self.sorting_function,
+            calculate_surprise=self.surprise_function,
+            correct_partition_labeling=self.partition_labeler,
+            flipping_function=self.flipping_function,
+            print_output=print_output)
 
         self._set_solved_problem(sol)
 
@@ -166,87 +181,141 @@ class DirectedGraph:
             try:
                 self.aux_adj = self.adjacency_weighted
                 self.method = "weighted"
-            except:
-                raise TypeError("You choose weighted core peryphery detection but the graph you initialised is binary.")
+            except Exception:
+                raise TypeError(
+                    "You choose weighted core peryphery detection but the"
+                    " graph you initialised is binary.")
         else:
             self.aux_adj = self.adjacency
             self.method = "binary"
 
-        if (sorting_method == "default") and (self.is_weighted):
+        if (sorting_method == "default") and self.is_weighted:
             sorting_method = "random"
         elif (sorting_method == "default") and (not self.is_weighted):
             sorting_method = "jaccard"
 
         sort_func = {
-                     "random": lambda x: AX.shuffled_edges(x, True),
-                     "degrees": None,
-                     "strengths": None,
-                    }
+            "random": lambda x: ax.shuffled_edges(x, True),
+            "degrees": None,
+            "strengths": None,
+        }
 
         try:
             self.sorting_function = sort_func[sorting_method]
-        except:
-            raise ValueError("Sorting method can be 'random', 'degrees' or 'strengths'.")
+        except Exception:
+            raise ValueError(
+                "Sorting method can be 'random', 'degrees' or 'strengths'.")
 
         surp_fun = {
-                    "binary": lambda x, y: CP.calculate_surprise_logsum_cp_bin(x, y, True),
-                    "weighted": lambda x, y: CP.calculate_surprise_logsum_cp_weigh(x, y, True),
-                    }
+            "binary": lambda x, y: cp.calculate_surprise_logsum_cp_bin(
+                x,
+                y,
+                True),
+            "weighted": lambda x, y: cp.calculate_surprise_logsum_cp_weigh(
+                x,
+                y,
+                True),
+        }
 
         try:
             self.surprise_function = surp_fun[self.method]
-        except:
+        except Exception:
             raise ValueError("CP method can be 'binary' or 'weighted'.")
 
-        self.flipping_function = lambda x: CP.flipping_function_cp(x, 1)
+        self.flipping_function = lambda x: cp.flipping_function_cp(x, 1)
 
-        self.partition_labeler = lambda x, y: CP.labeling_core_periphery(x, y)
+        self.partition_labeler = lambda x, y: cp.labeling_core_periphery(x, y)
 
     def _set_initial_guess_cp(self, initial_guess):
-        if initial_guess is None:
-            self.init_guess = np.ones(self.n_nodes, dtype=int)
-            if self.is_weighted:
-                self.init_guess[self.strength_sequence_out.argsort()[-3:]] = 0
+        # TODO: Sistemare parte pesata
+        if isinstance(initial_guess, str):
+            if initial_guess == "random":
+                self.init_guess = np.ones(self.n_nodes, dtype=np.int32)
+                aux_n = int(np.ceil((5 * self.n_nodes) / 100))
+                if self.is_weighted:
+                    self.init_guess[
+                        self.strength_sequence_out.argsort()[-aux_n:]] = 0
+                else:
+                    self.init_guess[
+                        self.degree_sequence_out.argsort()[-aux_n:]] = 0
+            elif initial_guess == "eigenvector":
+                self.initial_guess = ax.eigenvector_init_guess(self.adjacency,
+                                                               False)
             else:
-                self.init_guess[self.degree_sequence_out.argsort()[-3:]] = 0
+                raise ValueError("Valid values of initial guess are 'random', "
+                                 "eigenvector or a custom initial guess ("
+                                 "np.ndarray or list).")
+
         elif isinstance(initial_guess, np.ndarray):
             self.init_guess = initial_guess
         elif isinstance(initial_guess, list):
             self.init_guess = np.array(initial_guess)
 
+        if np.unique(self.init_guess).shape[0] != 2:
+            raise ValueError("The custom initial_guess passed is not valid."
+                             " The initial guess for core-periphery detection"
+                             " must have nodes' membership that are 0 and 1."
+                             " Pay attention that at least one node has to "
+                             "belong to the core (0) or the periphery (1).")
+
         if self.init_guess.shape[0] != self.n_nodes:
-            raise ValueError("The length of the initial guess provided is different from the network number of nodes.")
+            raise ValueError(
+                "The length of the initial guess provided is different from"
+                " the network number of nodes.")
 
     def run_comunity_detection(self,
+                               method="aglomerative",
                                initial_guess=None,
                                weighted=None,
-                               num_sim=2,
+                               num_sim=None,
+                               num_clusters=2,
                                prob_mix=0.1,
                                sorting_method="default",
                                print_output=False):
 
-        self._initialize_problem_cd(initial_guess=initial_guess,
-                                    weighted=weighted,
-                                    sorting_method=sorting_method)
+        self._initialize_problem_cd(
+            method=method,
+            num_clusters=num_clusters,
+            initial_guess=initial_guess,
+            weighted=weighted,
+            sorting_method=sorting_method)
 
-        sol = solver.solver_com_det(adjacency_matrix=self.aux_adj,
-                                    cluster_assignment=self.init_guess,
-                                    num_sim=num_sim,
-                                    sort_edges=self.sorting_function,
-                                    calculate_surprise=self.surprise_function,
-                                    correct_partition_labeling=self.partition_labeler,
-                                    prob_mix=prob_mix,
-                                    flipping_function=self.flipping_function,
-                                    print_output=print_output)
+        if method == "aglomerative":
+            sol = solver.solver_com_det_aglom(
+                adjacency_matrix=self.aux_adj,
+                cluster_assignment=self.init_guess,
+                num_sim=num_sim,
+                sort_edges=self.sorting_function,
+                calculate_surprise=self.surprise_function,
+                correct_partition_labeling=self.partition_labeler,
+                prob_mix=prob_mix,
+                flipping_function=self.flipping_function,
+                is_directed=True,
+                print_output=print_output)
+        elif method == "divisive":
+            sol = solver.solver_com_det_divis(
+                adjacency_matrix=self.aux_adj,
+                cluster_assignment=self.init_guess,
+                num_sim=num_sim,
+                sort_edges=self.sorting_function,
+                calculate_surprise=self.surprise_function,
+                correct_partition_labeling=self.partition_labeler,
+                flipping_function=self.flipping_function,
+                is_directed=True,
+                print_output=print_output)
+        else:
+            raise ValueError("Method can be 'aglomerative' or 'divisive'.")
 
         self._set_solved_problem(sol)
 
     def _initialize_problem_cd(self,
+                               method,
+                               num_clusters,
                                initial_guess,
                                weighted,
                                sorting_method):
 
-        self._set_initial_guess_cd(initial_guess)
+        self._set_initial_guess_cd(method, num_clusters, initial_guess)
         if weighted is None:
             if self.is_weighted:
                 self.aux_adj = self.adjacency_weighted
@@ -258,62 +327,93 @@ class DirectedGraph:
             try:
                 self.aux_adj = self.adjacency_weighted
                 self.method = "weighted"
-            except:
-                raise TypeError("You choose weighted comunity detection but the graph you initialised is binary.")
+            except Exception:
+                raise TypeError(
+                    "You choose weighted comunity detection but the graph"
+                    " you initialised is binary.")
         else:
             self.aux_adj = self.adjacency
             self.method = "binary"
 
-        if (sorting_method == "default") and (self.is_weighted):
+        if (sorting_method == "default") and self.is_weighted:
             sorting_method = "random"
         elif (sorting_method == "default") and (not self.is_weighted):
             sorting_method = "random"
 
         sort_func = {
-                     "random": lambda x: AX.shuffled_edges(x, True),
-                     "degrees": None,
-                     "strengths": None,
-                    }
+            "random": lambda x: ax.shuffled_edges(x, True),
+            "strengths": None,
+        }
 
         try:
             self.sorting_function = sort_func[sorting_method]
-        except:
-            raise ValueError("Sorting method can be 'random', 'degrees' or 'strengths'.")
+        except Exception:
+            raise ValueError(
+                "Sorting method can be 'random' or 'strengths'.")
 
         surp_fun = {
-                    "binary": lambda x, y: CD.calculate_surprise_logsum_clust_bin(x, y, True),
-                    "weighted": lambda x, y: CD.calculate_surprise_logsum_clust_weigh(x, y, True),
-                    }
+            "binary": cd.calculate_surprise_logsum_clust_bin_new,
+            "weighted": cd.calculate_surprise_logsum_clust_weigh_new,
+        }
 
-        try:
-            self.surprise_function = surp_fun[self.method]
-        except:
-            raise ValueError("Comunity detection method can be 'binary' or 'weighted'.")
+        self.surprise_function = surp_fun[self.method]
 
-        #self.flipping_function = lambda x: CD.flipping_function_comdet(x)
-        self.flipping_function = lambda x, y: CD.flipping_function_comdet_new(x, y, True)
+        # self.flipping_function = lambda x: CD.flipping_function_comdet(x)
+        self.flipping_function = lambda x, y: cd.flipping_function_comdet_new(
+            x, y, True)
 
-        self.partition_labeler = lambda x: CD.labeling_communities(x)
+        self.partition_labeler = lambda x: cd.labeling_communities(x)
 
     def _set_initial_guess_cd(self,
+                              method,
+                              num_clusters,
                               initial_guess):
-        if initial_guess is None:
-            self.init_guess = np.array([k for k in range(self.n_nodes)])
-        elif isinstance(initial_guess, str):
-            if initial_guess == "common-neighbours":
-                self.init_guess = AX.common_neigh_init_guess(self.adjacency)
+
+        if num_clusters is None and method == "divisive":
+            raise ValueError("When 'divisive' is passed as clustering 'method'"
+                             " the 'num_clusters' argument must be specified.")
+
+        if isinstance(initial_guess, str):
+            if initial_guess == "random":
+                if method == "aglomerative":
+                    self.init_guess = np.array(
+                        [k for k in np.arange(self.n_nodes, dtype=np.int32)])
+                elif method == "divisive":
+                    self.init_guess = np.random.randint(
+                        low=num_clusters,
+                        size=self.n_nodes)
+            elif initial_guess == "common-neighbours":
+                if method == "aglomerative":
+                    self.init_guess = ax.common_neigh_init_guess(
+                        self.adjacency)
+                elif method == "divisive":
+                    self.init_guess = ax.fixed_clusters_init_guess_cn(
+                        adjacency=self.adjacency,
+                        n_clust=num_clusters)
             else:
-                raise ValueError("Initial guess can a membership array or an initialisation method,"
-                                 " for more details see documentation.")
+                raise ValueError(
+                    "The 'initial_guess' selected is not a valid."
+                    "Initial guess can be an array specifying nodes membership"
+                    " or an initialisation method ['common-neighbours',"
+                    " random]. For more details see documentation.")
+
         elif isinstance(initial_guess, np.ndarray):
             self.init_guess = initial_guess
         elif isinstance(initial_guess, list):
             self.init_guess = np.array(initial_guess)
 
         if self.init_guess.shape[0] != self.n_nodes:
-            raise ValueError("The length of the initial guess provided is different from the network number of nodes.")
+            raise ValueError(
+                "The length of the initial guess provided is different"
+                " from the network number of nodes.")
+
+        if (method == "divisive" and
+                np.unique(self.init_guess).shape[0] != num_clusters):
+            raise ValueError("The number of clusters of a custom initial guess"
+                             " must coincide with 'num_clusters' when the "
+                             " divisive method is applied.")
 
     def _set_solved_problem(self, sol):
         self.solution = sol[0]
         self.log_surprise = sol[1]
-        self.surprise = 10**(-self.log_surprise)
+        self.surprise = 10 ** (-self.log_surprise)

@@ -1,6 +1,7 @@
 import numpy as np
 from numba import jit
-from . import auxiliary_function as AX
+
+from . import auxiliary_function as ax
 
 
 @jit(nopython=True)
@@ -26,7 +27,8 @@ def compute_sum(adj, row_indices, column_indices):
 def calculate_surprise_logsum_cp_weigh(adjacency_matrix,
                                        cluster_assignment,
                                        is_directed):
-    """Computes core-periphery weighted log-surprise given a certain nodes' partitioning.
+    """Computes core-periphery weighted log-surprise given a certain nodes'
+     partitioning.
 
     :param adjacency_matrix: Weighted adjacency matrix.
     :type adjacency_matrix: numpy.ndarray
@@ -62,18 +64,18 @@ def calculate_surprise_logsum_cp_weigh(adjacency_matrix,
     else:
         n_c = core_nodes.shape[0]
         n_x = periphery_nodes.shape[0]
-        p_c = n_c * (n_c-1) / 2
+        p_c = n_c * (n_c - 1) / 2
         p_x = n_c * n_x
 
-        w_c = (compute_sum(adjacency_matrix, core_nodes, core_nodes))/2
+        w_c = (compute_sum(adjacency_matrix, core_nodes, core_nodes)) / 2
         w_x = (compute_sum(adjacency_matrix,
                            core_nodes,
                            periphery_nodes) + compute_sum(adjacency_matrix,
                                                           periphery_nodes,
-                                                          core_nodes))/2
+                                                          core_nodes)) / 2
 
-        w = np.sum(adjacency_matrix)/2
-        w_p = (w - w_c - w_x)/2
+        w = np.sum(adjacency_matrix) / 2
+        w_p = (w - w_c - w_x) / 2
         n = n_c + n_x
         p = n * (n - 1) / 2
         p_p = p - p_c - p_x
@@ -97,7 +99,7 @@ def surprise_bipartite_logsum_CP_Weigh(p, p_c, p_x, p_p, w, w_c, w_x, w_p):
             nextLogP = logMultiHyperProbabilityWeight(p, p_c, p_x,
                                                       p_p, w, w_c_loop,
                                                       w_x_loop, w_p_loop)
-            [logP, stop] = AX.sumLogProbabilities(nextLogP, logP)
+            [logP, stop] = ax.sumLogProbabilities(nextLogP, logP)
 
             if stop:
                 first_loop_break = True
@@ -109,15 +111,18 @@ def surprise_bipartite_logsum_CP_Weigh(p, p_c, p_x, p_p, w, w_c, w_x, w_p):
 
 @jit(nopython=True)
 def logMultiHyperProbabilityWeight(p, p_c, p_x, p_p, w, w_c, w_x, w_p):
-    """Computes the logarithm of the Negative Multinomial Hypergeometric distribution."""
-    logH = AX.logC(p_c+w_c-1, w_c) + AX.logC(p_x+w_x-1, w_x) + AX.logC(p_p+w_p-1, w_p) - AX.logC(p+w, w)
+    """Computes the logarithm of the Negative Multinomial Hypergeometric
+     distribution."""
+    logH = (ax.logc(p_c + w_c - 1, w_c) + ax.logc(p_x + w_x - 1, w_x)
+            + ax.logc(p_p + w_p - 1, w_p) - ax.logc(p + w, w))
     return logH
 
 
 def calculate_surprise_logsum_cp_bin(adjacency_matrix,
                                      cluster_assignment,
                                      is_directed):
-    """Computes core-periphery binary log-surprise given a certain nodes' partitioning.
+    """Computes core-periphery binary log-surprise given a certain nodes'
+     partitioning.
 
     :param adjacency_matrix: Binary adjacency matrix.
     :type adjacency_matrix: numpy.ndarray
@@ -138,8 +143,10 @@ def calculate_surprise_logsum_cp_bin(adjacency_matrix,
         p_x = n_c * n_x * 2
 
         l_c = compute_sum(adjacency_matrix, core_nodes, core_nodes)
-        l_x = compute_sum(adjacency_matrix, core_nodes, periphery_nodes) + compute_sum(adjacency_matrix,
-                                                                                       periphery_nodes, core_nodes)
+        l_x = compute_sum(adjacency_matrix, core_nodes,
+                          periphery_nodes) + compute_sum(adjacency_matrix,
+                                                         periphery_nodes,
+                                                         core_nodes)
 
         l_t = np.sum(adjacency_matrix)
         n = n_c + n_x
@@ -151,15 +158,17 @@ def calculate_surprise_logsum_cp_bin(adjacency_matrix,
         p_c = (n_c * (n_c - 1)) / (2)
         p_x = n_c * n_x
 
-        l_c = compute_sum(adjacency_matrix, core_nodes, core_nodes)/2
-        l_x = (compute_sum(adjacency_matrix, core_nodes, periphery_nodes) + compute_sum(adjacency_matrix,
-                                                                                       periphery_nodes, core_nodes))/2
+        l_c = compute_sum(adjacency_matrix, core_nodes, core_nodes) / 2
+        l_x = (compute_sum(adjacency_matrix, core_nodes,
+                           periphery_nodes) + compute_sum(adjacency_matrix,
+                                                          periphery_nodes,
+                                                          core_nodes)) / 2
 
-        l_t = np.sum(adjacency_matrix)/2
+        l_t = np.sum(adjacency_matrix) / 2
         n = n_c + n_x
-        p = (n*(n-1)) / 2
+        p = (n * (n - 1)) / 2
 
-    if (p_c + p_x) < (l_c+l_x):
+    if (p_c + p_x) < (l_c + l_x):
         return 0
 
     surprise = surprise_bipartite_logsum_CP_Bin(p, p_c, p_x, l_t, l_c, l_x)
@@ -171,15 +180,16 @@ def surprise_bipartite_logsum_CP_Bin(p, p_c, p_x, l, l_c, l_x):
     stop = False
     first_loop_break = False
 
-    min_l_p = min(l, p_c+p_x)
+    min_l_p = min(l, p_c + p_x)
 
     logP = logMultiHyperProbability(p, p_c, p_x, l, l_c, l_x)
-    for l_c_loop in range(l_c, min_l_p+1):
-        for l_x_loop in range(l_x, min_l_p+1 - l_c_loop):
+    for l_c_loop in range(l_c, min_l_p + 1):
+        for l_x_loop in range(l_x, min_l_p + 1 - l_c_loop):
             if (l_c_loop == l_c) & (l_x_loop == l_x):
                 continue
-            nextLogP = logMultiHyperProbability(p, p_c, p_x, l, l_c_loop, l_x_loop)
-            [logP, stop] = AX.sumLogProbabilities(nextLogP, logP)
+            nextLogP = logMultiHyperProbability(p, p_c, p_x, l, l_c_loop,
+                                                l_x_loop)
+            [logP, stop] = ax.sumLogProbabilities(nextLogP, logP)
 
             if stop:
                 first_loop_break = True
@@ -192,8 +202,11 @@ def surprise_bipartite_logsum_CP_Bin(p, p_c, p_x, l, l_c, l_x):
 
 @jit(nopython=True)
 def logMultiHyperProbability(p, p_c, p_x, l, l_c, l_x):
-    """Computes the logarithm of the Multinomial Hypergeometric distribution."""
-    logH = AX.logC(p_c, l_c) + AX.logC(p_x, l_x) + AX.logC(p - p_c - p_x, l-l_c-l_x) - AX.logC(p, l)
+    """Computes the logarithm of the Multinomial Hypergeometric
+     distribution."""
+    logH = ax.logc(p_c, l_c) + ax.logc(p_x, l_x) + ax.logc(
+        p - p_c - p_x,
+        l - l_c - l_x) - ax.logc(p, l)
     return logH
 
 
@@ -209,10 +222,13 @@ def labeling_core_periphery(adjacency_matrix, cluster_assignment):
     """
     core_nodes = np.where(cluster_assignment == 0)[0]
     periphery_nodes = np.where(cluster_assignment == 1)[0]
-    l_core = np.sum(adjacency_matrix[np.ix_(list(core_nodes), list(core_nodes))] > 0)
-    l_periphery = np.sum(adjacency_matrix[np.ix_(list(periphery_nodes), list(periphery_nodes))] > 0)
-    core_density = l_core / (len(core_nodes)*(len(core_nodes)-1))
-    periphery_density = l_periphery / (len(periphery_nodes)*(len(periphery_nodes)-1))
+    l_core = np.sum(
+        adjacency_matrix[np.ix_(list(core_nodes), list(core_nodes))] > 0)
+    l_periphery = np.sum(adjacency_matrix[np.ix_(list(periphery_nodes),
+                                                 list(periphery_nodes))] > 0)
+    core_density = l_core / (len(core_nodes) * (len(core_nodes) - 1))
+    periphery_density = l_periphery / (
+            len(periphery_nodes) * (len(periphery_nodes) - 1))
 
     if periphery_density > core_density:
         cluster_assignment_new = 1 - cluster_assignment
