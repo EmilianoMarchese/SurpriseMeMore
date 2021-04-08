@@ -123,7 +123,7 @@ class UndirectedGraph:
         self.is_initialized = False
 
     def run_enhanced_cp_detection(self,
-                                  initial_guess="random",
+                                  initial_guess="ranked",
                                   num_sim=2,
                                   sorting_method="default",
                                   print_output=False):
@@ -147,7 +147,7 @@ class UndirectedGraph:
         self._set_solved_problem(sol)
 
     def run_cp_detection(self,
-                         initial_guess="random",
+                         initial_guess="ranked",
                          weighted=None,
                          num_sim=2,
                          sorting_method="default",
@@ -248,6 +248,11 @@ class UndirectedGraph:
         if isinstance(initial_guess, str):
             if initial_guess == "random":
                 self.init_guess = np.ones(self.n_nodes, dtype=np.int32)
+                aux_n = int(np.ceil((5 * self.n_nodes) / 100))
+                self.init_guess[:aux_n] = 0
+                np.random.shuffle(self.init_guess[:aux_n])
+            elif initial_guess == "ranked":
+                self.init_guess = np.ones(self.n_nodes, dtype=np.int32)
                 aux_n = int(np.ceil((5*self.n_nodes)/100))
                 if self.is_weighted:
                     self.init_guess[
@@ -256,12 +261,13 @@ class UndirectedGraph:
                     self.init_guess[
                         self.degree_sequence.argsort()[-aux_n:]] = 0
             elif initial_guess == "eigenvector":
-                self.init_guess = ax.eigenvector_init_guess(self.adjacency,
-                                                               False)
+                self.init_guess = ax.eigenvector_init_guess(
+                    self.adjacency,
+                    False)
             else:
                 raise ValueError("Valid values of initial guess are 'random', "
-                                 "'eigenvector' or a custom initial guess ("
-                                 "np.ndarray or list).")
+                                 "'eigenvector', 'ranked, or a custom initial"
+                                 " guess (np.ndarray or list).")
 
         elif isinstance(initial_guess, np.ndarray):
             self.init_guess = initial_guess

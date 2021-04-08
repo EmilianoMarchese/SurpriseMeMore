@@ -262,6 +262,11 @@ class DirectedGraph:
             if initial_guess == "random":
                 self.init_guess = np.ones(self.n_nodes, dtype=np.int32)
                 aux_n = int(np.ceil((5 * self.n_nodes) / 100))
+                self.init_guess[:aux_n] = 0
+                np.random.shuffle(self.init_guess[:aux_n])
+            elif initial_guess == "ranked":
+                self.init_guess = np.ones(self.n_nodes, dtype=np.int32)
+                aux_n = int(np.ceil((5 * self.n_nodes) / 100))
                 if self.is_weighted:
                     self.init_guess[
                         self.strength_sequence_out.argsort()[-aux_n:]] = 0
