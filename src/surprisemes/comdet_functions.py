@@ -477,6 +477,139 @@ def lognegativehyperprobability(Vi, w, Ve, W, V):
     return logh
 
 
+@jit(nopython=True)
+def intracluster_links_enh(adj, partitions):
+    """Computes intracluster links and weights for enhanced community
+     detection method.
+
+    :param adj: Adjacency matrix.
+    :type adj: numpy.array
+    :param partitions: Nodes memberships.
+    :type partitions: numpy.array
+    :return: Number of intra-cluster links/weights.
+    :rtype: float
+    """
+    nr_intr_clust_links = 0
+    intr_weight = 0
+    clust_labels = np.unique(partitions)
+    for lab in clust_labels:
+        indices = np.where(partitions == lab)[0]
+        aux_l, aux_w = intracluster_links_aux_enh(adj, indices)
+        nr_intr_clust_links += aux_l
+        intr_weight += aux_w
+    return nr_intr_clust_links, intr_weight
+
+
+@jit(nopython=True)
+def intracluster_links_aux_enh(adj, indices):
+    """Computes intra-cluster links or weights given nodes indices.
+
+    :param adj: [description]
+    :type adj: [type]
+    :param indices: [description]
+    :type indices: [type]
+    :return: [description]
+    :rtype: [type]
+    """
+    weight = 0.0
+    n_links = 0.0
+    for ii in indices:
+        for jj in indices:
+            if adj[ii, jj]:
+                weight += adj[ii, jj]
+                n_links += 1
+    return n_links, weight
+
+
+def calculate_surprise_logsum_clust_enhanced(
+        adjacency_matrix,
+        cluster_assignment,
+        is_directed):
+    """Calculates, for a weighted network, the logarithm of the enhanced
+     surprise given the current partitioning.
+
+    :param adjacency_matrix: Weighted adjacency matrix.
+    :type adjacency_matrix: numpy.ndarray
+    :param cluster_assignment: Nodes memberships.
+    :type cluster_assignment: numpy.ndarray
+    :param is_directed: True if the graph is directed.
+    :type is_directed: bool
+    :return: Log-surprise.
+    :rtype: float
+    """
+    if is_directed:
+        # intracluster weights
+        l_o, w_o = intracluster_links_enh(adjacency_matrix,
+                                          cluster_assignment)
+        # intracluster possible links
+        V_o = calculate_possible_intracluster_links(
+            cluster_assignment,
+            is_directed)
+        # Total Weight
+        W = np.sum(adjacency_matrix)
+        L = np.sum(adjacency_matrix.astype(bool))
+        # Possible links
+        n = adjacency_matrix.shape[0]
+        V = n * (n - 1)
+        # extracluster links
+        inter_links = V - V_o
+    else:
+        # intracluster weights
+        l_o, w_o = intracluster_links_enh(adjacency_matrix,
+                                          cluster_assignment)
+        l_o = l_o / 2
+        w_o = w_o / 2
+        # intracluster possible links
+        V_o = calculate_possible_intracluster_links(
+            cluster_assignment,
+            is_directed)
+        # Total Weight
+        W = np.sum(adjacency_matrix) / 2
+        L = np.sum(adjacency_matrix.astype(bool)) / 2
+        # Possible links
+        n = adjacency_matrix.shape[0]
+        V = int((n * (n - 1)) / 2)
+        # extracluster links
+        inter_links = V - V_o
+
+    # print("V_0", V_o, "l_0", l_o, "w_0", w_o, "V", V, "L", L, "W", W)
+
+    surprise = surprise_logsum_clust_enh(V_o, l_o, w_o, V, L, W)
+    return surprise
+
+
+@jit(nopython=True)
+def surprise_logsum_clust_enh(V_o, l_o, w_o, V, L, W):
+    stop = False
+    stop1 = False
+    min_l_loop = min(L, V_o)
+
+    logP = logenhancedhypergeometric(V_o, l_o, w_o, V, L, W)
+    logP1 = logP
+
+    for l_loop in np.arange(l_o, min_l_loop + 1):
+        for w_loop in np.arange(w_o, W + 1):
+            if (w_loop == w_o) and (l_loop == l_o):
+                continue
+            nextLogP = logenhancedhypergeometric(V_o, l_loop, w_loop, V, L, W)
+            [logP, stop] = ax.sumLogProbabilities(nextLogP, logP)
+            if stop:
+                break
+        nextLogP1 = logenhancedhypergeometric(V_o, l_loop, w_loop, V, L, W)
+        [logP1, stop1] = ax.sumLogProbabilities(nextLogP1, logP1)
+        if stop1:
+            break
+
+    return -logP1
+
+
+@jit(nopython=True)
+def logenhancedhypergeometric(V_o, l_o, w_o, V, L, W):
+    aux1 = (ax.logc(V_o, l_o) + ax.logc(V - V_o, L - l_o)) - ax.logc(V , L)
+    aux2 = (ax.logc(w_o - 1, w_o - l_o) + ax.logc(W - w_o - 1, (W - L) - (w_o - l_o))) - ax.logc(W - 1, W - L)
+    return aux1 * aux2
+
+
 def labeling_communities(partitions):
     """Gives labels to communities from 0 to number of communities minus one.
 
