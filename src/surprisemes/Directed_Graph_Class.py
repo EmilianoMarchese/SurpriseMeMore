@@ -269,7 +269,7 @@ class DirectedGraph:
                     self.init_guess[
                         self.degree_sequence_out.argsort()[-aux_n:]] = 0
             elif initial_guess == "eigenvector":
-                self.initial_guess = ax.eigenvector_init_guess(self.adjacency,
+                self.init_guess = ax.eigenvector_init_guess(self.adjacency,
                                                                False)
             else:
                 raise ValueError("Valid values of initial guess are 'random', "
