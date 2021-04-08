@@ -122,6 +122,30 @@ class UndirectedGraph:
         self.edgelist = None
         self.is_initialized = False
 
+    def run_enhanced_cp_detection(self,
+                                  initial_guess="random",
+                                  num_sim=2,
+                                  sorting_method="default",
+                                  print_output=False):
+
+        self._initialize_problem_cp(
+            initial_guess=initial_guess,
+            enhanced=True,
+            weighted=True,
+            sorting_method=sorting_method)
+
+        sol = solver.solver_cp(
+            adjacency_matrix=self.aux_adj,
+            cluster_assignment=self.init_guess,
+            num_sim=num_sim,
+            sort_edges=self.sorting_function,
+            calculate_surprise=self.surprise_function,
+            correct_partition_labeling=self.partition_labeler,
+            flipping_function=self.flipping_function,
+            print_output=print_output)
+
+        self._set_solved_problem(sol)
+
     def run_cp_detection(self,
                          initial_guess="random",
                          weighted=None,
@@ -131,6 +155,7 @@ class UndirectedGraph:
 
         self._initialize_problem_cp(
             initial_guess=initial_guess,
+            enhanced=False,
             weighted=weighted,
             sorting_method=sorting_method)
 
@@ -148,6 +173,7 @@ class UndirectedGraph:
 
     def _initialize_problem_cp(self,
                                initial_guess,
+                               enhanced,
                                weighted,
                                sorting_method):
 
@@ -160,9 +186,13 @@ class UndirectedGraph:
                 self.aux_adj = self.adjacency
                 self.method = "binary"
         elif weighted:
+            if enhanced:
+                self.method = "enhanced"
+            else:
+                self.method = "weighted"
+            # TODO: Mettere hasattr invece di questo try except
             try:
                 self.aux_adj = self.adjacency_weighted
-                self.method = "weighted"
             except Exception:
                 raise TypeError(
                     "You choose weighted core peryphery detection but the"
@@ -198,6 +228,10 @@ class UndirectedGraph:
                 x,
                 y,
                 False),
+            "enhanced": lambda x, y: cp.calculate_surprise_logsum_cp_enhanced(
+                x,
+                y,
+                False),
         }
 
         try:
@@ -226,7 +260,7 @@ class UndirectedGraph:
                                                                False)
             else:
                 raise ValueError("Valid values of initial guess are 'random', "
-                                 "eigenvector or a custom initial guess ("
+                                 "'eigenvector' or a custom initial guess ("
                                  "np.ndarray or list).")
 
         elif isinstance(initial_guess, np.ndarray):
@@ -237,7 +271,7 @@ class UndirectedGraph:
         if np.unique(self.init_guess).shape[0] != 2:
             raise ValueError("The custom initial_guess passed is not valid."
                              " The initial guess for core-periphery detection"
-                             " must have nodes' membership that are 0 and 1."
+                             " must have nodes' membership that are 0 or 1."
                              " Pay attention that at least one node has to "
                              "belong to the core (0) or the periphery (1).")
 
@@ -245,6 +279,38 @@ class UndirectedGraph:
             raise ValueError(
                 "The length of the initial guess provided is different from"
                 " the network number of nodes.")
+
+    def run_enhanced_community_detection(self,
+                                         method="aglomerative",
+                                         initial_guess="random",
+                                         weighted=None,
+                                         num_sim=2,
+                                         num_clusters=None,
+                                         prob_mix=0.1,
+                                         sorting_method="default",
+                                         print_output=False
+                                         ):
+
+        self._initialize_problem_cd(
+            method=method,
+            num_clusters=num_clusters,
+            initial_guess=initial_guess,
+            enhanced=True,
+            weighted=weighted,
+            sorting_method=sorting_method)
+
+        sol = solver.solver_com_det_old(
+            adjacency_matrix=self.aux_adj,
+            cluster_assignment=self.init_guess,
+            num_sim=num_sim,
+            sort_edges=self.sorting_function,
+            calculate_surprise=self.surprise_function,
+            correct_partition_labeling=self.partition_labeler,
+            prob_mix=prob_mix,
+            flipping_function=self.flipping_function,
+            print_output=print_output)
+
+        self._set_solved_problem(sol)
 
     def run_comunity_detection(self,
                                method="aglomerative",
@@ -260,6 +326,7 @@ class UndirectedGraph:
             method=method,
             num_clusters=num_clusters,
             initial_guess=initial_guess,
+            enhanced=True,
             weighted=weighted,
             sorting_method=sorting_method)
 
@@ -295,6 +362,7 @@ class UndirectedGraph:
                                method,
                                num_clusters,
                                initial_guess,
+                               enhanced,
                                weighted,
                                sorting_method):
 
@@ -307,12 +375,17 @@ class UndirectedGraph:
                 self.aux_adj = self.adjacency
                 self.method = "binary"
         elif weighted:
+            if enhanced:
+                self.method = "enhanced"
+            else:
+                self.method = "weighted"
+            # TODO: Mettere hasattr invece di questo try except
             try:
                 self.aux_adj = self.adjacency_weighted
-                self.method = "weighted"
             except Exception:
-                raise TypeError("You choose weighted comunity detection but "
-                                "the graph you initialised is binary.")
+                raise TypeError(
+                    "You choose weighted core peryphery detection but the"
+                    " graph you initialised is binary.")
         else:
             self.aux_adj = self.adjacency
             self.method = "binary"
@@ -337,6 +410,10 @@ class UndirectedGraph:
         surp_fun = {
             "binary": cd.calculate_surprise_logsum_clust_bin_new,
             "weighted": cd.calculate_surprise_logsum_clust_weigh_new,
+            "enhanced": lambda x, y: cd.calculate_surprise_logsum_clust_enhanced(
+                x,
+                y,
+                False)
         }
 
         self.surprise_function = surp_fun[self.method]
