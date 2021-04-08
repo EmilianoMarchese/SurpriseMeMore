@@ -75,8 +75,8 @@ def eigenvector_init_guess(adjacency, is_directed):
         centra = nx.eigenvector_centrality_numpy(graph)
         centra1 = np.array([centra[key] for key in centra])
         membership = np.zeros_like(centra1, dtype=np.int32)
-        print(aux_nodes)
-        print(membership[np.argsort(centra1)[::-1]][:aux_nodes])
+        #print(aux_nodes)
+        #print(membership[np.argsort(centra1)[::-1]][:aux_nodes])
         membership[np.argsort(centra1)[::-1][:aux_nodes]] = 1
 
     return membership
