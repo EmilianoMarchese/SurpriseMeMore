@@ -245,6 +245,10 @@ class DirectedGraph:
                 x,
                 y,
                 True),
+            "enhanced": lambda x, y: cp.calculate_surprise_logsum_cp_enhanced(
+                x,
+                y,
+                True),
         }
 
         try:
