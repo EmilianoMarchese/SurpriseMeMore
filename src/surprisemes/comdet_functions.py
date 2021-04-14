@@ -645,10 +645,10 @@ def calculate_surprise_logsum_clust_enhanced_new(
         W = args[1]
         L = args[0]
         # Possible links
-        n = adjacency_matrix.shape[0]
+        # n = adjacency_matrix.shape[0]
         V = args[2]
         # extracluster links
-        inter_links = V - V_o
+        # inter_links = V - V_o
     else:
         # intracluster weights
         if len(clust_labels):
@@ -672,10 +672,10 @@ def calculate_surprise_logsum_clust_enhanced_new(
         W = args[1] / 2
         L = args[0] / 2
         # Possible links
-        n = adjacency_matrix.shape[0]
+        # n = adjacency_matrix.shape[0]
         V = int(args[2] / 2)
         # extracluster links
-        inter_links = V - V_o
+        # inter_links = V - V_o
 
     # print("V_0", V_o, "l_0", l_o, "w_0", w_o, "V", V, "L", L, "W", W)
 
@@ -753,24 +753,14 @@ def flipping_function_comdet(comm):
     return comm
 
 
-def flipping_function_comdet_new(adj,
-                                 membership,
-                                 is_directed):
-    obs_links = int(np.sum(adj.astype(bool)))
-    n_nodes = int(adj.shape[0])
-    poss_links = int(n_nodes * (n_nodes - 1))
-    args = (obs_links, poss_links)
-
-    surprise = calculate_surprise_logsum_clust_bin(
-        adjacency_matrix=adj,
-        cluster_assignment=membership,
-        is_directed=is_directed)
-
-    mem_intr_link = np.zeros(membership.shape[0], dtype=np.int32)
-    # print(np.unique(membership), mem_intr_link, membership)
-    for ii in np.unique(membership):
-        indices = np.where(membership == ii)[0]
-        mem_intr_link[ii] = intracluster_links_aux(adj, indices)
+def flipping_function_comdet_new(
+        calculate_surprise,
+        adj,
+        membership,
+        mem_intr_link,
+        args,
+        surprise,
+        is_directed):
 
     # print("siamo qui")
     for node, node_label in zip(np.arange(membership.shape[0]), membership):
@@ -780,7 +770,7 @@ def flipping_function_comdet_new(adj,
                 aux_membership = membership.copy()
                 aux_membership[node] = new_clust
                 # print(np.array([node_label, new_clust]))
-                temp_surprise, temp_mem_intr_link = calculate_surprise_logsum_clust_bin_new(
+                temp_surprise, temp_mem_intr_link = calculate_surprise(
                     adjacency_matrix=adj,
                     cluster_assignment=aux_membership,
                     mem_intr_link=mem_intr_link.copy(),
