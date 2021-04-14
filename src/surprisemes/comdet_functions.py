@@ -190,9 +190,9 @@ def calculate_surprise_logsum_clust_bin_new(
                 partitions=cluster_assignment)
 
             for node_label, nr_links in zip(clust_labels, int_links):
-                mem_intr_link[node_label] = nr_links
+                mem_intr_link[0][node_label] = nr_links
 
-        p = np.sum(mem_intr_link)
+        p = np.sum(mem_intr_link[0])
         int_links = int(p)
         # All the possible intracluster links                                                           
         poss_int_links = calculate_possible_intracluster_links_new(
@@ -201,7 +201,7 @@ def calculate_surprise_logsum_clust_bin_new(
         # Observed links                                                                                
         obs_links = args[0]
         # Possible link
-        poss_links = args[1]
+        poss_links = args[2]
     else:
         # intracluster links
         if len(clust_labels):
@@ -211,9 +211,9 @@ def calculate_surprise_logsum_clust_bin_new(
                 partitions=cluster_assignment)
 
             for node_label, nr_links in zip(clust_labels, int_links):
-                mem_intr_link[node_label] = nr_links
+                mem_intr_link[0][node_label] = nr_links
 
-        p = np.sum(mem_intr_link)
+        p = np.sum(mem_intr_link[0])
         int_links = int(p / 2)
         # All the possible intracluster links                                                           
         poss_int_links = int(calculate_possible_intracluster_links_new(
@@ -222,7 +222,7 @@ def calculate_surprise_logsum_clust_bin_new(
         # Observed links                                                                                
         obs_links = args[0] / 2
         # Possible links
-        poss_links = int(args[1] / 2)
+        poss_links = int(args[2] / 2)
 
     surprise = surprise_logsum_clust_bin(
         poss_links,
@@ -372,18 +372,18 @@ def calculate_surprise_logsum_clust_weigh_new(
                 partitions=cluster_assignment)
 
             for node_label, nr_links in zip(clust_labels, w):
-                mem_intr_link[node_label] = nr_links
+                mem_intr_link[1][node_label] = nr_links
 
-        p = np.sum(mem_intr_link)
+        p = np.sum(mem_intr_link[1])
         intr_weights = int(p)
         # intracluster possible links
-        poss_intr_links = calculate_possible_intracluster_links(
+        poss_intr_links = calculate_possible_intracluster_links_new(
             cluster_assignment,
             is_directed)
         # Total Weight
-        tot_weights = args[0]
+        tot_weights = args[1]
         # Possible links
-        poss_links = args[1]
+        poss_links = args[2]
         # extracluster links
         inter_links = poss_links - poss_intr_links
     else:
@@ -395,18 +395,18 @@ def calculate_surprise_logsum_clust_weigh_new(
                 partitions=cluster_assignment)
 
             for node_label, nr_links in zip(clust_labels, w):
-                mem_intr_link[node_label] = nr_links
+                mem_intr_link[1][node_label] = nr_links
 
-        p = np.sum(mem_intr_link)
+        p = np.sum(mem_intr_link[1])
         intr_weights = int(p / 2)
         # intracluster possible links
-        poss_intr_links = calculate_possible_intracluster_links(
+        poss_intr_links = calculate_possible_intracluster_links_new(
             cluster_assignment,
             is_directed)
         # Total Weight
-        tot_weights = int(args[0] / 2)
+        tot_weights = int(args[1] / 2)
         # Possible links
-        poss_links = int(args[1] / 2)
+        poss_links = int(args[2] / 2)
         # extracluster links
         inter_links = poss_links - poss_intr_links
 
@@ -501,6 +501,31 @@ def intracluster_links_enh(adj, partitions):
 
 
 @jit(nopython=True)
+def intracluster_links_enh_new(adj, clust_labels, partitions):
+    """Computes intracluster links and weights for enhanced community
+     detection method.
+
+    :param adj: Adjacency matrix.
+    :type adj: numpy.array
+    :param clust_labels:
+    :type clust_labels:
+    :param partitions: Nodes memberships.
+    :type partitions: numpy.array
+    :return: Number of intra-cluster links/weights.
+    :rtype: float
+    """
+    nr_intr_clust_links = np.zeros(clust_labels.shape[0])
+    intr_weight = np.zeros(clust_labels.shape[0])
+    clust_labels = np.unique(partitions)
+    for ii, lab in enumerate(clust_labels):
+        indices = np.where(partitions == lab)[0]
+        aux_l, aux_w = intracluster_links_aux_enh(adj, indices)
+        nr_intr_clust_links[ii] = aux_l
+        intr_weight[ii] = aux_w
+    return nr_intr_clust_links, intr_weight
+
+
+@jit(nopython=True)
 def intracluster_links_aux_enh(adj, indices):
     """Computes intra-cluster links or weights given nodes indices.
 
@@ -576,6 +601,86 @@ def calculate_surprise_logsum_clust_enhanced(
 
     surprise = surprise_logsum_clust_enh(V_o, l_o, w_o, V, L, W)
     return surprise
+
+
+def calculate_surprise_logsum_clust_enhanced_new(
+        adjacency_matrix,
+        cluster_assignment,
+        mem_intr_link,
+        clust_labels,
+        args,
+        is_directed):
+    """Calculates, for a weighted network, the logarithm of the enhanced
+     surprise given the current partitioning.
+
+    :param adjacency_matrix: Weighted adjacency matrix.
+    :type adjacency_matrix: numpy.ndarray
+    :param cluster_assignment: Nodes memberships.
+    :type cluster_assignment: numpy.ndarray
+    :param is_directed: True if the graph is directed.
+    :type is_directed: bool
+    :return: Log-surprise.
+    :rtype: float
+    """
+    if is_directed:
+        # intracluster weights
+        if len(clust_labels):
+            l_aux, w_aux = intracluster_links_enh_new(
+                adj=adjacency_matrix,
+                clust_labels=clust_labels,
+                partitions=cluster_assignment)
+
+            for node_label, nr_links, w_int in zip(clust_labels, l_aux, w_aux):
+                mem_intr_link[0][node_label] = nr_links
+                mem_intr_link[1][node_label] = w_int
+
+        l_o = mem_intr_link[0].sum()
+        w_o = mem_intr_link[1].sum()
+
+        # intracluster possible links
+        V_o = calculate_possible_intracluster_links_new(
+            cluster_assignment,
+            is_directed)
+        # Total Weight
+        W = args[1]
+        L = args[0]
+        # Possible links
+        n = adjacency_matrix.shape[0]
+        V = args[2]
+        # extracluster links
+        inter_links = V - V_o
+    else:
+        # intracluster weights
+        if len(clust_labels):
+            l_aux, w_aux = intracluster_links_enh_new(
+                adj=adjacency_matrix,
+                clust_labels=clust_labels,
+                partitions=cluster_assignment)
+
+            for node_label, nr_links, w_int in zip(clust_labels, l_aux, w_aux):
+                mem_intr_link[0][node_label] = nr_links
+                mem_intr_link[1][node_label] = w_int
+
+        l_o = mem_intr_link[0].sum()/2
+        w_o = mem_intr_link[1].sum()/2
+
+        # intracluster possible links
+        V_o = calculate_possible_intracluster_links_new(
+            cluster_assignment,
+            is_directed)
+        # Total Weight
+        W = args[1] / 2
+        L = args[0] / 2
+        # Possible links
+        n = adjacency_matrix.shape[0]
+        V = int(args[2] / 2)
+        # extracluster links
+        inter_links = V - V_o
+
+    # print("V_0", V_o, "l_0", l_o, "w_0", w_o, "V", V, "L", L, "W", W)
+
+    surprise = surprise_logsum_clust_enh(V_o, l_o, w_o, V, L, W)
+    return surprise, mem_intr_link
 
 
 @jit(nopython=True)
