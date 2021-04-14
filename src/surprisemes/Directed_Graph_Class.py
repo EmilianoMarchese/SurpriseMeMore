@@ -305,7 +305,6 @@ class DirectedGraph:
     def run_enhanced_community_detection(self,
                                          method="aglomerative",
                                          initial_guess="random",
-                                         weighted=None,
                                          num_sim=2,
                                          num_clusters=None,
                                          prob_mix=0.1,
@@ -318,19 +317,34 @@ class DirectedGraph:
             num_clusters=num_clusters,
             initial_guess=initial_guess,
             enhanced=True,
-            weighted=weighted,
+            weighted=True,
             sorting_method=sorting_method)
 
-        sol = solver.solver_com_det_old(
-            adjacency_matrix=self.aux_adj,
-            cluster_assignment=self.init_guess,
-            num_sim=num_sim,
-            sort_edges=self.sorting_function,
-            calculate_surprise=self.surprise_function,
-            correct_partition_labeling=self.partition_labeler,
-            prob_mix=prob_mix,
-            flipping_function=self.flipping_function,
-            print_output=print_output)
+        if method == "aglomerative":
+            sol = solver.solver_com_det_aglom(
+                adjacency_matrix=self.aux_adj,
+                cluster_assignment=self.init_guess,
+                num_sim=num_sim,
+                sort_edges=self.sorting_function,
+                calculate_surprise=self.surprise_function,
+                correct_partition_labeling=self.partition_labeler,
+                prob_mix=prob_mix,
+                flipping_function=self.flipping_function,
+                is_directed=True,
+                print_output=print_output)
+        elif method == "divisive":
+            sol = solver.solver_com_det_divis(
+                adjacency_matrix=self.aux_adj,
+                cluster_assignment=self.init_guess,
+                num_sim=num_sim,
+                sort_edges=self.sorting_function,
+                calculate_surprise=self.surprise_function,
+                correct_partition_labeling=self.partition_labeler,
+                flipping_function=self.flipping_function,
+                is_directed=True,
+                print_output=print_output)
+        else:
+            raise ValueError("Method can be 'aglomerative' or 'divisive'.")
 
         self._set_solved_problem(sol)
 
@@ -431,10 +445,7 @@ class DirectedGraph:
         surp_fun = {
             "binary": cd.calculate_surprise_logsum_clust_bin_new,
             "weighted": cd.calculate_surprise_logsum_clust_weigh_new,
-            "enhanced": lambda x, y: cd.calculate_surprise_logsum_clust_enhanced(
-                x,
-                y,
-                True)
+            "enhanced": cd.calculate_surprise_logsum_clust_enhanced_new,
         }
 
         self.surprise_function = surp_fun[self.method]
