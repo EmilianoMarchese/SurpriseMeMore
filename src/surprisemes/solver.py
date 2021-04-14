@@ -151,7 +151,7 @@ def solver_com_det_aglom(
             adjacency_matrix,
             indices)
         mem_intr_link[0][ii] = l_aux
-        mem_intr_link[0][ii] = w_aux
+        mem_intr_link[1][ii] = w_aux
 
     surprise, _ = calculate_surprise(
         adjacency_matrix,
@@ -231,8 +231,13 @@ def solver_com_det_aglom(
         sim += 1
 
     cluster_assignment = flipping_function(
-        adjacency_matrix,
-        cluster_assignment.copy())
+        calculate_surprise=calculate_surprise,
+        adj=adjacency_matrix,
+        membership=cluster_assignment.copy(),
+        mem_intr_link=mem_intr_link.copy(),
+        args=args,
+        surprise=surprise,
+        is_directed=is_directed)
 
     cluster_assignement_proper = correct_partition_labeling(
         cluster_assignment.copy())
@@ -279,6 +284,8 @@ def solver_com_det_divis(
     poss_links = int(n_nodes * (n_nodes - 1))
     args = (obs_links, obs_weights, poss_links)
 
+    n_clusters = np.unique(cluster_assignment).shape[0]
+
     mem_intr_link = np.zeros((2, cluster_assignment.shape[0]), dtype=np.int32)
     for ii in np.unique(cluster_assignment):
         indices = np.where(cluster_assignment == ii)[0]
@@ -286,7 +293,7 @@ def solver_com_det_divis(
             adjacency_matrix,
             indices)
         mem_intr_link[0][ii] = l_aux
-        mem_intr_link[0][ii] = w_aux
+        mem_intr_link[1][ii] = w_aux
 
     surprise, _ = calculate_surprise(
         adjacency_matrix,
@@ -386,8 +393,13 @@ def solver_com_det_divis(
         sim += 1
 
     cluster_assignment = flipping_function(
-        adjacency_matrix,
-        cluster_assignment.copy())
+        calculate_surprise=calculate_surprise,
+        adj=adjacency_matrix,
+        membership=cluster_assignment.copy(),
+        mem_intr_link=mem_intr_link.copy(),
+        args=args,
+        surprise=surprise,
+        is_directed=is_directed)
 
     cluster_assignement_proper = correct_partition_labeling(
         cluster_assignment.copy())
@@ -483,8 +495,8 @@ def solver_com_det_old(
             print(surprise)
         sim += 1
 
-    cluster_assignment = flipping_function(adjacency_matrix,
-                                           cluster_assignment.copy())
+    #cluster_assignment = flipping_function(adjacency_matrix,
+    #                                       cluster_assignment.copy())
 
     cluster_assignement_proper = correct_partition_labeling(
         cluster_assignment.copy())
