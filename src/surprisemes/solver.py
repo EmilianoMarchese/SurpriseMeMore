@@ -1,4 +1,5 @@
 import numpy as np
+from tqdm import tqdm
 
 from . import comdet_functions as cd
 
@@ -37,7 +38,7 @@ def solver_cp(adjacency_matrix,
     sim = 0
     while sim < num_sim:
         # edges_counter = 0
-        for [u, v] in edges_sorted:
+        for [u, v] in tqdm(edges_sorted):
             # surprise_old = surprise
             cluster_assignment_temp1 = cluster_assignment.copy()
             cluster_assignment_temp2 = cluster_assignment.copy()
@@ -169,7 +170,7 @@ def solver_com_det_aglom(
         e_sorted = sort_edges(adjacency_matrix)
         # print(cluster_assignment)
         # print(e_sorted)
-        for [u, v] in e_sorted:
+        for [u, v] in tqdm(e_sorted):
             if cluster_assignment[u] != cluster_assignment[v]:
                 clus_u = cluster_assignment[u]
                 clus_v = cluster_assignment[v]
@@ -311,7 +312,7 @@ def solver_com_det_divis(
         e_sorted = sort_edges(adjacency_matrix)
         # print(cluster_assignment)
         # print(E_sorted)
-        for [u, v] in e_sorted:
+        for [u, v] in tqdm(e_sorted):
             cluster_assignment_temp1 = cluster_assignment.copy()
             cluster_assignment_temp2 = cluster_assignment.copy()
 
@@ -450,7 +451,7 @@ def solver_com_det_old(
         e_sorted = sort_edges(adjacency_matrix)
         # print(cluster_assignment)
         # print(e_sorted)
-        for [u, v] in e_sorted:
+        for [u, v] in tqdm(e_sorted):
             if cluster_assignment[u] != cluster_assignment[v]:
                 cluster_assignement_temp = cluster_assignment.copy()
                 random_number = np.random.uniform()
@@ -495,7 +496,7 @@ def solver_com_det_old(
             print(surprise)
         sim += 1
 
-    #cluster_assignment = flipping_function(adjacency_matrix,
+    # cluster_assignment = flipping_function(adjacency_matrix,
     #                                       cluster_assignment.copy())
 
     cluster_assignement_proper = correct_partition_labeling(
