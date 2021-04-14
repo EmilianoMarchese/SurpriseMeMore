@@ -138,17 +138,20 @@ def solver_com_det_aglom(
     """
     prob_random = (1 - prob_mix) / 2
 
-    obs_links = int(np.sum(adjacency_matrix))
+    obs_links = int(np.sum(adjacency_matrix.astype(bool)))
+    obs_weights = int(np.sum(adjacency_matrix))
     n_nodes = int(adjacency_matrix.shape[0])
     poss_links = int(n_nodes * (n_nodes - 1))
-    args = (obs_links, poss_links)
+    args = (obs_links, obs_weights, poss_links)
 
-    mem_intr_link = np.zeros(cluster_assignment.shape[0], dtype=np.int32)
+    mem_intr_link = np.zeros((2, cluster_assignment.shape[0]), dtype=np.int32)
     for ii in np.unique(cluster_assignment):
         indices = np.where(cluster_assignment == ii)[0]
-        mem_intr_link[ii] = cd.intracluster_links_aux(
+        l_aux, w_aux = cd.intracluster_links_enh(
             adjacency_matrix,
             indices)
+        mem_intr_link[0][ii] = l_aux
+        mem_intr_link[0][ii] = w_aux
 
     surprise, _ = calculate_surprise(
         adjacency_matrix,
@@ -214,7 +217,7 @@ def solver_com_det_aglom(
                 if temp_surprise > surprise:
                     cluster_assignment = cluster_assignement_temp.copy()
                     surprise = temp_surprise
-                    mem_intr_link = temp_mem_intr_link
+                    mem_intr_link = temp_mem_intr_link.copy()
 
         if surprise > previous_surprise:
             contatore_break = 0
@@ -270,18 +273,20 @@ def solver_com_det_divis(
     :return: [description]
     :rtype: [type]
     """
-    obs_links = int(np.sum(adjacency_matrix))
+    obs_links = int(np.sum(adjacency_matrix.astype(bool)))
+    obs_weights = int(np.sum(adjacency_matrix))
     n_nodes = int(adjacency_matrix.shape[0])
     poss_links = int(n_nodes * (n_nodes - 1))
-    args = (obs_links, poss_links)
+    args = (obs_links, obs_weights, poss_links)
 
-    n_clusters = np.unique(cluster_assignment).shape[0]
-    mem_intr_link = np.zeros(n_clusters, dtype=np.int32)
+    mem_intr_link = np.zeros((2, cluster_assignment.shape[0]), dtype=np.int32)
     for ii in np.unique(cluster_assignment):
         indices = np.where(cluster_assignment == ii)[0]
-        mem_intr_link[ii] = cd.intracluster_links_aux(
+        l_aux, w_aux = cd.intracluster_links_enh(
             adjacency_matrix,
             indices)
+        mem_intr_link[0][ii] = l_aux
+        mem_intr_link[0][ii] = w_aux
 
     surprise, _ = calculate_surprise(
         adjacency_matrix,
