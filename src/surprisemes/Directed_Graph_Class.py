@@ -451,8 +451,7 @@ class DirectedGraph:
         self.surprise_function = surp_fun[self.method]
 
         # self.flipping_function = lambda x: CD.flipping_function_comdet(x)
-        self.flipping_function = lambda x, y: cd.flipping_function_comdet_new(
-            x, y, True)
+        self.flipping_function = lambda x, y: cd.flipping_function_comdet_new
 
         self.partition_labeler = lambda x: cd.labeling_communities(x)
 
