@@ -793,13 +793,13 @@ def calculate_surprise_logsum_clust_weigh_continuos(
         tot_weights,
         p,
         poss_intr_links)
-    return surprise, mem_intr_link
+    return -np.log10(surprise), mem_intr_link
 
 
 def continuous_surprise_clust(V, W, w_o, V_o):
     aux_surp = integrate.quad(integrand_clust, w_o, W,
                               args=(V, W, V_o), epsabs=1e-05, epsrel=1e-05)
-    return -np.log10(aux_surp)
+    return aux_surp
 
 
 def integrand_clust(w_o, V, W, V_o):

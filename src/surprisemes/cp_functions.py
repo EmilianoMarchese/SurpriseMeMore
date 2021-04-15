@@ -426,12 +426,12 @@ def calculate_surprise_logsum_cp_continuous(adjacency_matrix,
         p_p = p - p_c - p_x
 
     surprise = continuous_surprise_cp(w_x, w_c, p, w, p_c, p_x)
-    return surprise
+    return -np.log10(surprise)
 
 
 def continuous_surprise_cp(w_c, w_o, V, W, V_o, V_c):
     aux_surprise = integrate.dblquad(lambda x, y: integrand_cp(x, y, V, W, V_o, V_c),  w_o, W, lambda x: w_c, lambda x: W-x, epsabs=1e-05, epsrel=1e-05)
-    return -np.log10(aux_surprise)
+    return aux_surprise
 
 
 def integrand_cp(w_c, w_o, V, W, V_o, V_c):
