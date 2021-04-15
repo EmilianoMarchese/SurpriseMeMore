@@ -122,6 +122,31 @@ class UndirectedGraph:
         self.edgelist = None
         self.is_initialized = False
 
+    def run_cp_detection_continuous(self,
+                                    initial_guess="ranked",
+                                    num_sim=2,
+                                    sorting_method="default",
+                                    print_output=False):
+
+        self._initialize_problem_cp(
+            initial_guess=initial_guess,
+            enhanced=False,
+            weighted=True,
+            continuous=True,
+            sorting_method=sorting_method)
+
+        sol = solver.solver_cp(
+            adjacency_matrix=self.aux_adj,
+            cluster_assignment=self.init_guess,
+            num_sim=num_sim,
+            sort_edges=self.sorting_function,
+            calculate_surprise=self.surprise_function,
+            correct_partition_labeling=self.partition_labeler,
+            flipping_function=self.flipping_function,
+            print_output=print_output)
+
+        self._set_solved_problem(sol)
+
     def run_enhanced_cp_detection(self,
                                   initial_guess="ranked",
                                   num_sim=2,
@@ -132,6 +157,7 @@ class UndirectedGraph:
             initial_guess=initial_guess,
             enhanced=True,
             weighted=True,
+            continuous=False,
             sorting_method=sorting_method)
 
         sol = solver.solver_cp(
@@ -157,6 +183,7 @@ class UndirectedGraph:
             initial_guess=initial_guess,
             enhanced=False,
             weighted=weighted,
+            continuous=False,
             sorting_method=sorting_method)
 
         sol = solver.solver_cp(
@@ -175,6 +202,7 @@ class UndirectedGraph:
                                initial_guess,
                                enhanced,
                                weighted,
+                               continuous,
                                sorting_method):
 
         self._set_initial_guess_cp(initial_guess)
@@ -188,6 +216,8 @@ class UndirectedGraph:
         elif weighted:
             if enhanced:
                 self.method = "enhanced"
+            elif continuous:
+                self.method = "continuous"
             else:
                 self.method = "weighted"
             # TODO: Mettere hasattr invece di questo try except
@@ -229,6 +259,10 @@ class UndirectedGraph:
                 y,
                 False),
             "enhanced": lambda x, y: cp.calculate_surprise_logsum_cp_enhanced(
+                x,
+                y,
+                False),
+            "continuous": lambda x, y: cp.calculate_surprise_logsum_cp_continuous(
                 x,
                 y,
                 False),
@@ -286,6 +320,52 @@ class UndirectedGraph:
                 "The length of the initial guess provided is different from"
                 " the network number of nodes.")
 
+    def run_community_detection_continuous(self,
+                                           method="aglomerative",
+                                           initial_guess="random",
+                                           num_sim=2,
+                                           num_clusters=None,
+                                           prob_mix=0.1,
+                                           sorting_method="default",
+                                           print_output=False
+                                           ):
+        self._initialize_problem_cd(
+            method=method,
+            num_clusters=num_clusters,
+            initial_guess=initial_guess,
+            enhanced=False,
+            weighted=True,
+            continuous=True,
+            sorting_method=sorting_method)
+
+        if method == "aglomerative":
+            sol = solver.solver_com_det_aglom(
+                adjacency_matrix=self.aux_adj,
+                cluster_assignment=self.init_guess,
+                num_sim=num_sim,
+                sort_edges=self.sorting_function,
+                calculate_surprise=self.surprise_function,
+                correct_partition_labeling=self.partition_labeler,
+                prob_mix=prob_mix,
+                flipping_function=self.flipping_function,
+                is_directed=False,
+                print_output=print_output)
+        elif method == "divisive":
+            sol = solver.solver_com_det_divis(
+                adjacency_matrix=self.aux_adj,
+                cluster_assignment=self.init_guess,
+                num_sim=num_sim,
+                sort_edges=self.sorting_function,
+                calculate_surprise=self.surprise_function,
+                correct_partition_labeling=self.partition_labeler,
+                flipping_function=self.flipping_function,
+                is_directed=False,
+                print_output=print_output)
+        else:
+            raise ValueError("Method can be 'aglomerative' or 'divisive'.")
+
+        self._set_solved_problem(sol)
+
     def run_enhanced_community_detection(self,
                                          method="aglomerative",
                                          initial_guess="random",
@@ -302,6 +382,7 @@ class UndirectedGraph:
             initial_guess=initial_guess,
             enhanced=True,
             weighted=True,
+            continuous=False,
             sorting_method=sorting_method)
 
         if method == "aglomerative":
@@ -348,6 +429,7 @@ class UndirectedGraph:
             initial_guess=initial_guess,
             enhanced=False,
             weighted=weighted,
+            continuous=False,
             sorting_method=sorting_method)
 
         if method == "aglomerative":
@@ -384,6 +466,7 @@ class UndirectedGraph:
                                initial_guess,
                                enhanced,
                                weighted,
+                               continuous,
                                sorting_method):
 
         self._set_initial_guess_cd(method, num_clusters, initial_guess)
@@ -397,6 +480,8 @@ class UndirectedGraph:
         elif weighted:
             if enhanced:
                 self.method = "enhanced"
+            elif continuous:
+                self.method = "continuous"
             else:
                 self.method = "weighted"
             # TODO: Mettere hasattr invece di questo try except
@@ -430,7 +515,8 @@ class UndirectedGraph:
         surp_fun = {
             "binary": cd.calculate_surprise_logsum_clust_bin_new,
             "weighted": cd.calculate_surprise_logsum_clust_weigh_new,
-            "enhanced": cd.calculate_surprise_logsum_clust_enhanced,
+            "enhanced": cd.calculate_surprise_logsum_clust_enhanced_new,
+            "continuous": cd.calculate_surprise_logsum_clust_weigh_continuos,
         }
 
         self.surprise_function = surp_fun[self.method]
