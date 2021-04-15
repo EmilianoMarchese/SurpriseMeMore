@@ -1,5 +1,7 @@
 import numpy as np
 from numba import jit
+from sympy import beta
+import scipy.integrate as integrate
 
 from . import auxiliary_function as ax
 
@@ -516,7 +518,6 @@ def intracluster_links_enh_new(adj, clust_labels, partitions):
     """
     nr_intr_clust_links = np.zeros(clust_labels.shape[0])
     intr_weight = np.zeros(clust_labels.shape[0])
-    clust_labels = np.unique(partitions)
     for ii, lab in enumerate(clust_labels):
         indices = np.where(partitions == lab)[0]
         aux_l, aux_w = intracluster_links_aux_enh(adj, indices)
@@ -712,7 +713,98 @@ def surprise_logsum_clust_enh(V_o, l_o, w_o, V, L, W):
 def logenhancedhypergeometric(V_o, l_o, w_o, V, L, W):
     aux1 = (ax.logc(V_o, l_o) + ax.logc(V - V_o, L - l_o)) - ax.logc(V , L)
     aux2 = (ax.logc(w_o - 1, w_o - l_o) + ax.logc(W - w_o - 1, (W - L) - (w_o - l_o))) - ax.logc(W - 1, W - L)
-    return aux1 * aux2
+    return aux1 + aux2
+
+
+def calculate_surprise_logsum_clust_weigh_continuos(
+        adjacency_matrix,
+        cluster_assignment,
+        mem_intr_link,
+        clust_labels,
+        args,
+        is_directed):
+    """Calculates the logarithm of the continuos surprise given the current
+     partitions for a weighted network. New faster implementation.
+
+    :param adjacency_matrix: Weighted adjacency matrix.
+    :type adjacency_matrix: numpy.ndarray
+    :param cluster_assignment: Nodes memberships.
+    :type cluster_assignment: numpy.ndarray
+    :param mem_intr_link:
+    :type mem_intr_link:
+    :param clust_labels:
+    :type clust_labels:
+    :param args:
+    :type args:
+    :param is_directed: True if the graph is directed.
+    :type is_directed: bool
+    :return: Log-surprise.
+    :rtype: float
+    """
+    if is_directed:
+        # intracluster weights
+        if len(clust_labels):
+            w = intracluster_links_new(
+                adj=adjacency_matrix,
+                clust_labels=clust_labels,
+                partitions=cluster_assignment)
+
+            for node_label, nr_links in zip(clust_labels, w):
+                mem_intr_link[1][node_label] = nr_links
+
+        p = np.sum(mem_intr_link[1])
+        intr_weights = int(p)
+        # intracluster possible links
+        poss_intr_links = calculate_possible_intracluster_links_new(
+            cluster_assignment,
+            is_directed)
+        # Total Weight
+        tot_weights = args[1]
+        # Possible links
+        poss_links = args[2]
+        # extracluster links
+        inter_links = poss_links - poss_intr_links
+    else:
+        # intracluster weights
+        if len(clust_labels):
+            w = intracluster_links_new(
+                adj=adjacency_matrix,
+                clust_labels=clust_labels,
+                partitions=cluster_assignment)
+
+            for node_label, nr_links in zip(clust_labels, w):
+                mem_intr_link[1][node_label] = nr_links
+
+        p = np.sum(mem_intr_link[1])
+        intr_weights = int(p / 2)
+        # intracluster possible links
+        poss_intr_links = calculate_possible_intracluster_links_new(
+            cluster_assignment,
+            is_directed)
+        # Total Weight
+        tot_weights = int(args[1] / 2)
+        # Possible links
+        poss_links = int(args[2] / 2)
+        # extracluster links
+        inter_links = poss_links - poss_intr_links
+
+    surprise = continuous_surprise_clust(
+        poss_links,
+        tot_weights,
+        p,
+        poss_intr_links)
+    return surprise, mem_intr_link
+
+
+def continuous_surprise_clust(V, W, w_o, V_o):
+    aux_surp = integrate.quad(integrand_clust, w_o, W,
+                              args=(V, W, V_o), epsabs=1e-05, epsrel=1e-05)
+    return -np.log10(aux_surp)
+
+
+def integrand_clust(w_o, V, W, V_o):
+    aux = W * beta(V, W) / (w_o*beta(V_o, w_o) * (W-w_o) * beta(V-V_o, W-w_o))
+    return aux
 
 
 def labeling_communities(partitions):
@@ -762,10 +854,11 @@ def flipping_function_comdet_new(
         surprise,
         is_directed):
 
-    # print("siamo qui")
-    for node, node_label in zip(np.arange(membership.shape[0]), membership):
+    list_neigh = ax.compute_neighbours(adj)
 
-        for new_clust in np.unique(membership):
+    for node, node_label in zip(np.arange(membership.shape[0]), membership):
+        for node2 in list_neigh[node]:
+            new_clust = membership[node2]
             if node_label != new_clust:
                 aux_membership = membership.copy()
                 aux_membership[node] = new_clust

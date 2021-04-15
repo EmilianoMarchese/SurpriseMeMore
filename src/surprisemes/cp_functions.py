@@ -1,5 +1,7 @@
 import numpy as np
 from numba import jit
+from sympy import beta
+import scipy.integrate as integrate
 
 from . import auxiliary_function as ax
 
@@ -364,6 +366,77 @@ def logenhancedmultyhyper(V_o, l_o, V_c, l_c, w_o, w_c, V, L, W):
     aux1 = (ax.logc(V_o, l_o) + ax.logc(V_c, l_c) + ax.logc(V - (V_o + V_c), L - (l_o + l_c))) - ax.logc(V, L)
     aux2 = (ax.logc(w_o - 1, l_o - 1) + ax.logc(w_c - 1, l_c - 1) + ax.logc(W - (w_o + w_c) - 1, L - (l_o + l_c) - 1)) - ax.logc(W - 1, W - L)
     return aux1 + aux2
+
+
+def calculate_surprise_logsum_cp_continuous(adjacency_matrix,
+                                            cluster_assignment,
+                                            is_directed):
+    """Computes core-periphery weighted continuous log-surprise given a certain nodes' partitioning.
+
+    :param adjacency_matrix: Weighted adjacency matrix.
+    :type adjacency_matrix: numpy.ndarray
+    :param cluster_assignment: Core periphery assigments.
+    :type cluster_assignment: numpy.ndarray
+    :param is_directed: True if the graph is directed.
+    :type is_directed: bool
+    :return: Log-surprise
+    :rtype: float
+    """
+    core_nodes = np.unique(np.where(cluster_assignment == 0)[0])
+    periphery_nodes = np.unique(np.where(cluster_assignment == 1)[0])
+
+    if is_directed:
+        n_c = core_nodes.shape[0]
+        n_x = periphery_nodes.shape[0]
+        p_c = n_c * (n_c - 1)
+        p_x = n_c * n_x * 2
+
+        w_c = compute_sum(adjacency_matrix, core_nodes, core_nodes)
+        w_x = compute_sum(adjacency_matrix,
+                          core_nodes,
+                          periphery_nodes) + compute_sum(
+                                                    adjacency_matrix,
+                                                    periphery_nodes,
+                                                    core_nodes)
+
+        w = np.sum(adjacency_matrix)
+        w_p = w - w_c - w_x
+        n = n_c + n_x
+        p = n * (n - 1)
+        p_p = p - p_c - p_x
+
+    else:
+        n_c = core_nodes.shape[0]
+        n_x = periphery_nodes.shape[0]
+        p_c = n_c * (n_c-1) / 2
+        p_x = n_c * n_x
+
+        w_c = (compute_sum(adjacency_matrix, core_nodes, core_nodes))/2
+        w_x = (compute_sum(adjacency_matrix,
+                           core_nodes,
+                           periphery_nodes) + compute_sum(
+                                                      adjacency_matrix,
+                                                      periphery_nodes,
+                                                      core_nodes))/2
+
+        w = np.sum(adjacency_matrix)/2
+        w_p = (w - w_c - w_x)/2
+        n = n_c + n_x
+        p = n * (n - 1) / 2
+        p_p = p - p_c - p_x
+
+    surprise = continuous_surprise_cp(w_x, w_c, p, w, p_c, p_x)
+    return surprise
+
+
+def continuous_surprise_cp(w_c, w_o, V, W, V_o, V_c):
+    aux_surprise = integrate.dblquad(lambda x, y: integrand_cp(x, y, V, W, V_o, V_c),  w_o, W, lambda x: w_c, lambda x: W-x, epsabs=1e-05, epsrel=1e-05)
+    return -np.log10(aux_surprise)
+
+
+def integrand_cp(w_c, w_o, V, W, V_o, V_c):
+    aux = W * beta(V, W) / (w_o*beta(V_o, w_o) * w_c * beta(V_c, w_c) * (W-(w_o+w_c)) * beta(V-(V_o+V_c), W-(w_o+w_c)))
+    return aux
 
 
 def labeling_core_periphery(adjacency_matrix, cluster_assignment):
