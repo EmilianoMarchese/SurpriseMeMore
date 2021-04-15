@@ -9,6 +9,13 @@ from . import comdet_functions as cd
 from . import cp_functions as cp
 
 
+def compute_neighbours(adj):
+    lista_neigh = []
+    for ii in np.arange(adj.shape[0]):
+        lista_neigh.append(adj[ii,:].nonzero()[0])
+    return lista_neigh
+
+
 @jit(nopython=True)
 def compute_cn(adjacency):
     """ Computes common neighbours table, each entry i,j of this table is the
