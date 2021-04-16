@@ -122,7 +122,7 @@ def calculate_surprise_logsum_clust_bin(adjacency_matrix,
         p = intracluster_links(
             adjacency_matrix,
             cluster_assignment)
-        int_links = int(p)
+        int_links = p
         # All the possible intracluster links
         poss_int_links = calculate_possible_intracluster_links(
             cluster_assignment,
@@ -137,16 +137,16 @@ def calculate_surprise_logsum_clust_bin(adjacency_matrix,
         p = intracluster_links(
             adjacency_matrix,
             cluster_assignment)
-        int_links = int(p / 2)
+        int_links = p / 2
         # All the possible intracluster links
-        poss_int_links = int(calculate_possible_intracluster_links(
+        poss_int_links = calculate_possible_intracluster_links(
             cluster_assignment,
-            is_directed))
+            is_directed)
         # Observed links
         obs_links = np.sum(adjacency_matrix.astype(bool)) / 2
         # Possible links
         n = adjacency_matrix.shape[0]
-        poss_links = int((n * (n - 1)) / 2)
+        poss_links = (n * (n - 1)) / 2
 
     surprise = surprise_logsum_clust_bin(
         poss_links,
@@ -195,7 +195,7 @@ def calculate_surprise_logsum_clust_bin_new(
                 mem_intr_link[0][node_label] = nr_links
 
         p = np.sum(mem_intr_link[0])
-        int_links = int(p)
+        int_links = p
         # All the possible intracluster links                                                           
         poss_int_links = calculate_possible_intracluster_links_new(
             cluster_assignment,
@@ -216,15 +216,15 @@ def calculate_surprise_logsum_clust_bin_new(
                 mem_intr_link[0][node_label] = nr_links
 
         p = np.sum(mem_intr_link[0])
-        int_links = int(p / 2)
+        int_links = p / 2
         # All the possible intracluster links                                                           
-        poss_int_links = int(calculate_possible_intracluster_links_new(
+        poss_int_links = calculate_possible_intracluster_links_new(
             cluster_assignment,
-            is_directed))
+            is_directed)
         # Observed links                                                                                
         obs_links = args[0] / 2
         # Possible links
-        poss_links = int(args[2] / 2)
+        poss_links = args[2] / 2
 
     surprise = surprise_logsum_clust_bin(
         poss_links,
@@ -327,7 +327,7 @@ def calculate_surprise_logsum_clust_weigh(
         tot_weights = np.sum(adjacency_matrix) / 2
         # Possible links
         n = adjacency_matrix.shape[0]
-        poss_links = int((n * (n - 1)) / 2)
+        poss_links = (n * (n - 1)) / 2
         # extracluster links
         inter_links = poss_links - poss_intr_links
 
@@ -377,7 +377,7 @@ def calculate_surprise_logsum_clust_weigh_new(
                 mem_intr_link[1][node_label] = nr_links
 
         p = np.sum(mem_intr_link[1])
-        intr_weights = int(p)
+        intr_weights = p
         # intracluster possible links
         poss_intr_links = calculate_possible_intracluster_links_new(
             cluster_assignment,
@@ -400,15 +400,15 @@ def calculate_surprise_logsum_clust_weigh_new(
                 mem_intr_link[1][node_label] = nr_links
 
         p = np.sum(mem_intr_link[1])
-        intr_weights = int(p / 2)
+        intr_weights = p / 2
         # intracluster possible links
         poss_intr_links = calculate_possible_intracluster_links_new(
             cluster_assignment,
             is_directed)
         # Total Weight
-        tot_weights = int(args[1] / 2)
+        tot_weights = args[1] / 2
         # Possible links
-        poss_links = int(args[2] / 2)
+        poss_links = args[2] / 2
         # extracluster links
         inter_links = poss_links - poss_intr_links
 
@@ -594,7 +594,7 @@ def calculate_surprise_logsum_clust_enhanced(
         L = np.sum(adjacency_matrix.astype(bool)) / 2
         # Possible links
         n = adjacency_matrix.shape[0]
-        V = int((n * (n - 1)) / 2)
+        V = (n * (n - 1)) / 2
         # extracluster links
         inter_links = V - V_o
 
@@ -674,7 +674,7 @@ def calculate_surprise_logsum_clust_enhanced_new(
         L = args[0] / 2
         # Possible links
         # n = adjacency_matrix.shape[0]
-        V = int(args[2] / 2)
+        V = args[2] / 2
         # extracluster links
         # inter_links = V - V_o
 
@@ -753,7 +753,7 @@ def calculate_surprise_logsum_clust_weigh_continuos(
                 mem_intr_link[1][node_label] = nr_links
 
         p = np.sum(mem_intr_link[1])
-        intr_weights = int(p)
+        intr_weights = p
         # intracluster possible links
         poss_intr_links = calculate_possible_intracluster_links_new(
             cluster_assignment,
@@ -776,15 +776,15 @@ def calculate_surprise_logsum_clust_weigh_continuos(
                 mem_intr_link[1][node_label] = nr_links
 
         p = np.sum(mem_intr_link[1])
-        intr_weights = int(p / 2)
+        intr_weights = p / 2
         # intracluster possible links
         poss_intr_links = calculate_possible_intracluster_links_new(
             cluster_assignment,
             is_directed)
         # Total Weight
-        tot_weights = int(args[1] / 2)
+        tot_weights = args[1] / 2
         # Possible links
-        poss_links = int(args[2] / 2)
+        poss_links = args[2] / 2
         # extracluster links
         inter_links = poss_links - poss_intr_links
 
@@ -799,7 +799,7 @@ def calculate_surprise_logsum_clust_weigh_continuos(
 def continuous_surprise_clust(V, W, w_o, V_o):
     aux_surp = integrate.quad(integrand_clust, w_o, W,
                               args=(V, W, V_o), epsabs=1e-05, epsrel=1e-05)
-    return aux_surp
+    return aux_surp[0]
 
 
 def integrand_clust(w_o, V, W, V_o):

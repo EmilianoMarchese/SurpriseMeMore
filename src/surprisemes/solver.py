@@ -139,10 +139,10 @@ def solver_com_det_aglom(
     """
     prob_random = (1 - prob_mix) / 2
 
-    obs_links = int(np.sum(adjacency_matrix.astype(bool)))
-    obs_weights = int(np.sum(adjacency_matrix))
+    obs_links = np.sum(adjacency_matrix.astype(bool))
+    obs_weights = np.sum(adjacency_matrix)
     n_nodes = int(adjacency_matrix.shape[0])
-    poss_links = int(n_nodes * (n_nodes - 1))
+    poss_links = n_nodes * (n_nodes - 1)
     args = (obs_links, obs_weights, poss_links)
 
     mem_intr_link = np.zeros((2, cluster_assignment.shape[0]), dtype=np.int32)
@@ -279,10 +279,10 @@ def solver_com_det_divis(
     :return: [description]
     :rtype: [type]
     """
-    obs_links = int(np.sum(adjacency_matrix.astype(bool)))
-    obs_weights = int(np.sum(adjacency_matrix))
+    obs_links = np.sum(adjacency_matrix.astype(bool))
+    obs_weights = np.sum(adjacency_matrix)
     n_nodes = int(adjacency_matrix.shape[0])
-    poss_links = int(n_nodes * (n_nodes - 1))
+    poss_links = n_nodes * (n_nodes - 1)
     args = (obs_links, obs_weights, poss_links)
 
     n_clusters = np.unique(cluster_assignment).shape[0]
