@@ -223,6 +223,14 @@ class UndirectedGraph:
             # TODO: Mettere hasattr invece di questo try except
             try:
                 self.aux_adj = self.adjacency_weighted
+                cond1 = (self.method == "enhanced" or
+                         self.method == "weighted")
+                cond2 = (self.aux_adj.astype(np.int64).sum() !=
+                         self.aux_adj.sum())
+                if cond1 and cond2:
+                    raise ValueError("The selected method works for discrete "
+                                     "weights, but the initialised graph has "
+                                     "continuous weights.")
             except Exception:
                 raise TypeError(
                     "You choose weighted core peryphery detection but the"
@@ -487,6 +495,14 @@ class UndirectedGraph:
             # TODO: Mettere hasattr invece di questo try except
             try:
                 self.aux_adj = self.adjacency_weighted
+                cond1 = (self.method == "enhanced" or
+                         self.method == "weighted")
+                cond2 = (self.aux_adj.astype(np.int64).sum() !=
+                         self.aux_adj.sum())
+                if cond1 and cond2:
+                    raise ValueError("The selected method works for discrete "
+                                     "weights, but the initialised graph has "
+                                     "continuous weights.")
             except Exception:
                 raise TypeError(
                     "You choose weighted core peryphery detection but the"
