@@ -122,7 +122,7 @@ class UndirectedGraph:
         self.edgelist = None
         self.is_initialized = False
 
-    def run_cp_detection_continuous(self,
+    def run_continuous_cp_detection(self,
                                     initial_guess="ranked",
                                     num_sim=2,
                                     sorting_method="default",
@@ -172,7 +172,7 @@ class UndirectedGraph:
 
         self._set_solved_problem(sol)
 
-    def run_cp_detection(self,
+    def run_discrete_cp_detection(self,
                          initial_guess="ranked",
                          weighted=None,
                          num_sim=2,
@@ -328,7 +328,7 @@ class UndirectedGraph:
                 "The length of the initial guess provided is different from"
                 " the network number of nodes.")
 
-    def run_community_detection_continuous(self,
+    def run_continuous_community_detection(self,
                                            method="aglomerative",
                                            initial_guess="random",
                                            num_sim=2,
@@ -355,7 +355,7 @@ class UndirectedGraph:
                 calculate_surprise=self.surprise_function,
                 correct_partition_labeling=self.partition_labeler,
                 prob_mix=prob_mix,
-                flipping_function=self.flipping_function,
+                flipping_function=cd.flipping_function_comdet_agl_new,
                 is_directed=False,
                 print_output=print_output)
         elif method == "divisive":
@@ -366,7 +366,7 @@ class UndirectedGraph:
                 sort_edges=self.sorting_function,
                 calculate_surprise=self.surprise_function,
                 correct_partition_labeling=self.partition_labeler,
-                flipping_function=self.flipping_function,
+                flipping_function=cd.flipping_function_comdet_div_new,
                 is_directed=False,
                 print_output=print_output)
         else:
@@ -402,7 +402,7 @@ class UndirectedGraph:
                 calculate_surprise=self.surprise_function,
                 correct_partition_labeling=self.partition_labeler,
                 prob_mix=prob_mix,
-                flipping_function=self.flipping_function,
+                flipping_function=cd.flipping_function_comdet_agl_new,
                 is_directed=False,
                 print_output=print_output)
         elif method == "divisive":
@@ -413,7 +413,7 @@ class UndirectedGraph:
                 sort_edges=self.sorting_function,
                 calculate_surprise=self.surprise_function,
                 correct_partition_labeling=self.partition_labeler,
-                flipping_function=self.flipping_function,
+                flipping_function=cd.flipping_function_comdet_div_new,
                 is_directed=False,
                 print_output=print_output)
         else:
@@ -421,15 +421,15 @@ class UndirectedGraph:
 
         self._set_solved_problem(sol)
 
-    def run_comunity_detection(self,
-                               method="aglomerative",
-                               initial_guess="random",
-                               weighted=None,
-                               num_sim=2,
-                               num_clusters=None,
-                               prob_mix=0.1,
-                               sorting_method="default",
-                               print_output=False):
+    def run_discrete_comunity_detection(self,
+                                        method="aglomerative",
+                                        initial_guess="random",
+                                        weighted=None,
+                                        num_sim=2,
+                                        num_clusters=None,
+                                        prob_mix=0.1,
+                                        sorting_method="default",
+                                        print_output=False):
 
         self._initialize_problem_cd(
             method=method,
@@ -449,7 +449,7 @@ class UndirectedGraph:
                 calculate_surprise=self.surprise_function,
                 correct_partition_labeling=self.partition_labeler,
                 prob_mix=prob_mix,
-                flipping_function=self.flipping_function,
+                flipping_function=cd.flipping_function_comdet_agl_new,
                 is_directed=False,
                 print_output=print_output)
         elif method == "divisive":
@@ -460,7 +460,7 @@ class UndirectedGraph:
                 sort_edges=self.sorting_function,
                 calculate_surprise=self.surprise_function,
                 correct_partition_labeling=self.partition_labeler,
-                flipping_function=self.flipping_function,
+                flipping_function=cd.flipping_function_comdet_div_new,
                 is_directed=False,
                 print_output=print_output)
         else:
@@ -538,7 +538,7 @@ class UndirectedGraph:
         self.surprise_function = surp_fun[self.method]
 
         # self.flipping_function = lambda x: CD.flipping_function_comdet(x)
-        self.flipping_function = cd.flipping_function_comdet_new
+        # self.flipping_function = cd.flipping_function_comdet_new
 
         self.partition_labeler = lambda x: cd.labeling_communities(x)
 
@@ -559,9 +559,18 @@ class UndirectedGraph:
                     self.init_guess = np.random.randint(
                         low=num_clusters,
                         size=self.n_nodes)
-            elif initial_guess == "common-neighbours":
+            elif (initial_guess == "common-neigh-weak") or \
+                    (initial_guess == "common-neighbours"):
                 if method == "aglomerative":
-                    self.init_guess = ax.common_neigh_init_guess(
+                    self.init_guess = ax.common_neigh_init_guess_weak(
+                        self.adjacency)
+                elif method == "divisive":
+                    self.init_guess = ax.fixed_clusters_init_guess_cn(
+                        adjacency=self.adjacency,
+                        n_clust=num_clusters)
+            elif initial_guess == "common-neigh-strong":
+                if method == "aglomerative":
+                    self.init_guess = ax.common_neigh_init_guess_strong(
                         self.adjacency)
                 elif method == "divisive":
                     self.init_guess = ax.fixed_clusters_init_guess_cn(
@@ -572,7 +581,8 @@ class UndirectedGraph:
                     "The 'initial_guess' selected is not a valid."
                     "Initial guess can be an array specifying nodes membership"
                     " or an initialisation method ['common-neighbours',"
-                    " random]. For more details see documentation.")
+                    " 'random', 'common-neigh-weak', 'common-neigh-strong']."
+                    " For more details see documentation.")
 
         elif isinstance(initial_guess, np.ndarray):
             self.init_guess = initial_guess.astype(np.int32)
