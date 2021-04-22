@@ -37,9 +37,10 @@ def compute_cn(adjacency):
 
 
 @jit(nopython=True)
-def common_neigh_init_guess(adjacency):
+def common_neigh_init_guess_strong(adjacency):
     """Generates a preprocessed initial guess based on the common neighbours
-     of nodes.
+     of nodes. It makes a stronger aggregation of nodes based on
+      the common neighbours similarity.
 
     :param adjacency: Adjacency matrix.
     :type adjacency: numpy.ndarray
@@ -49,9 +50,35 @@ def common_neigh_init_guess(adjacency):
     cn_table = compute_cn(adjacency)
     memberships = np.array(
         [k for k in np.arange(adjacency.shape[0], dtype=np.int32)])
-    for ii in np.arange(adjacency.shape[0]):
-        aux_node1 = np.random.choice(memberships)
-        memberships[aux_node1] = memberships[np.argmax(cn_table[aux_node1])]
+    argsorted = np.argsort(adjacency.astype(np.bool_).sum(axis=1))[::-1]
+    for aux_node1 in argsorted:
+        aux_tmp = memberships == aux_node1
+        memberships[aux_tmp] = memberships[np.argmax(cn_table[aux_node1])]
+    return memberships
+
+
+@jit(nopython=True)
+def common_neigh_init_guess_weak(adjacency):
+    """Generates a preprocessed initial guess based on the common neighbours
+     of nodes. It makes a weaker aggregation of nodes based on
+      the common neighbours similarity.
+
+    :param adjacency: Adjacency matrix.
+    :type adjacency: numpy.ndarray
+    :return: Initial guess for nodes memberships.
+    :rtype: np.array
+    """
+    cn_table = compute_cn(adjacency)
+    memberships = np.array(
+        [k for k in np.arange(adjacency.shape[0], dtype=np.int32)])
+    degree = (adjacency.astype(np.bool_).sum(axis=1)
+              + adjacency.astype(np.bool_).sum(axis=0))
+    avg_degree = np.mean(degree)
+    argsorted = np.argsort(degree)[::-1]
+    for aux_node1 in argsorted:
+        if (degree[aux_node1]>=avg_degree):
+            aux_tmp = memberships == aux_node1
+            memberships[aux_tmp] = memberships[np.argmax(cn_table[aux_node1])]
     return memberships
 
 
@@ -74,17 +101,15 @@ def eigenvector_init_guess(adjacency, is_directed):
         graph = nx.from_numpy_array(adjacency, create_using=nx.DiGraph)
         centra = nx.eigenvector_centrality_numpy(graph)
         centra1 = np.array([centra[key] for key in centra])
-        membership = np.zeros_like(centra1, dtype=np.int32)
-        membership[np.argsort(centra1)[::-1][:aux_nodes]] = 1
+        membership = np.ones_like(centra1, dtype=np.int32)
+        membership[np.argsort(centra1)[::-1][:aux_nodes]] = 0
 
     else:
         graph = nx.from_numpy_array(adjacency, create_using=nx.Graph)
         centra = nx.eigenvector_centrality_numpy(graph)
         centra1 = np.array([centra[key] for key in centra])
-        membership = np.zeros_like(centra1, dtype=np.int32)
-        #print(aux_nodes)
-        #print(membership[np.argsort(centra1)[::-1]][:aux_nodes])
-        membership[np.argsort(centra1)[::-1][:aux_nodes]] = 1
+        membership = np.ones_like(centra1, dtype=np.int32)
+        membership[np.argsort(centra1)[::-1][:aux_nodes]] = 0
 
     return membership
 
