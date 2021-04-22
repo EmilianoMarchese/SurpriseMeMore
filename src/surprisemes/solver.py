@@ -145,10 +145,14 @@ def solver_com_det_aglom(
     poss_links = n_nodes * (n_nodes - 1)
     args = (obs_links, obs_weights, poss_links)
 
-    mem_intr_link = np.zeros((2, cluster_assignment.shape[0]), dtype=np.int32)
+    cluster_assignment = correct_partition_labeling(
+        cluster_assignment.copy())
+    n_clusters = np.unique(cluster_assignment).shape[0]
+
+    mem_intr_link = np.zeros((2, n_clusters), dtype=np.float64)
     for ii in np.unique(cluster_assignment):
         indices = np.where(cluster_assignment == ii)[0]
-        l_aux, w_aux = cd.intracluster_links_enh(
+        l_aux, w_aux = cd.intracluster_links_aux_enh(
             adjacency_matrix,
             indices)
         mem_intr_link[0][ii] = l_aux
@@ -287,10 +291,10 @@ def solver_com_det_divis(
 
     n_clusters = np.unique(cluster_assignment).shape[0]
 
-    mem_intr_link = np.zeros((2, cluster_assignment.shape[0]), dtype=np.int32)
+    mem_intr_link = np.zeros((2, n_clusters), dtype=np.float64)
     for ii in np.unique(cluster_assignment):
         indices = np.where(cluster_assignment == ii)[0]
-        l_aux, w_aux = cd.intracluster_links_enh(
+        l_aux, w_aux = cd.intracluster_links_aux_enh(
             adjacency_matrix,
             indices)
         mem_intr_link[0][ii] = l_aux
