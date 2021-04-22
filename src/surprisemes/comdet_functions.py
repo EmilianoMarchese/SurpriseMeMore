@@ -195,15 +195,15 @@ def calculate_surprise_logsum_clust_bin_new(
                 mem_intr_link[0][node_label] = nr_links
 
         p = np.sum(mem_intr_link[0])
-        int_links = p
+        int_links = int(p)
         # All the possible intracluster links                                                           
-        poss_int_links = calculate_possible_intracluster_links_new(
+        poss_int_links = int(calculate_possible_intracluster_links_new(
             cluster_assignment,
-            is_directed)
+            is_directed))
         # Observed links                                                                                
-        obs_links = args[0]
+        obs_links = int(args[0])
         # Possible link
-        poss_links = args[2]
+        poss_links = int(args[2])
     else:
         # intracluster links
         if len(clust_labels):
@@ -216,15 +216,15 @@ def calculate_surprise_logsum_clust_bin_new(
                 mem_intr_link[0][node_label] = nr_links
 
         p = np.sum(mem_intr_link[0])
-        int_links = p / 2
+        int_links = int(p / 2)
         # All the possible intracluster links                                                           
-        poss_int_links = calculate_possible_intracluster_links_new(
+        poss_int_links = int(calculate_possible_intracluster_links_new(
             cluster_assignment,
-            is_directed)
+            is_directed))
         # Observed links                                                                                
-        obs_links = args[0] / 2
+        obs_links = int(args[0] / 2)
         # Possible links
-        poss_links = args[2] / 2
+        poss_links = int(args[2] / 2)
 
     surprise = surprise_logsum_clust_bin(
         poss_links,
@@ -254,7 +254,7 @@ def surprise_logsum_clust_bin(F, p, M, m):
     min_p = min(M, m)
 
     logP = loghyperprobability(F, p, M, m)
-    for p_loop in np.arange(p, min_p + 1):
+    for p_loop in range(p, min_p + 1):
         if p_loop == p:
             continue
         nextLogP = loghyperprobability(F, p_loop, M, m)
@@ -635,19 +635,19 @@ def calculate_surprise_logsum_clust_enhanced_new(
                 mem_intr_link[0][node_label] = nr_links
                 mem_intr_link[1][node_label] = w_int
 
-        l_o = mem_intr_link[0].sum()
-        w_o = mem_intr_link[1].sum()
+        l_o = int(mem_intr_link[0].sum())
+        w_o = int(mem_intr_link[1].sum())
 
         # intracluster possible links
-        V_o = calculate_possible_intracluster_links_new(
+        V_o = int(calculate_possible_intracluster_links_new(
             cluster_assignment,
-            is_directed)
+            is_directed))
         # Total Weight
-        W = args[1]
-        L = args[0]
+        W = int(args[1])
+        L = int(args[0])
         # Possible links
         # n = adjacency_matrix.shape[0]
-        V = args[2]
+        V = int(args[2])
         # extracluster links
         # inter_links = V - V_o
     else:
@@ -662,19 +662,19 @@ def calculate_surprise_logsum_clust_enhanced_new(
                 mem_intr_link[0][node_label] = nr_links
                 mem_intr_link[1][node_label] = w_int
 
-        l_o = mem_intr_link[0].sum()/2
-        w_o = mem_intr_link[1].sum()/2
+        l_o = int(mem_intr_link[0].sum()/2)
+        w_o = int(mem_intr_link[1].sum()/2)
 
         # intracluster possible links
-        V_o = calculate_possible_intracluster_links_new(
+        V_o = int(calculate_possible_intracluster_links_new(
             cluster_assignment,
-            is_directed)
+            is_directed))
         # Total Weight
-        W = args[1] / 2
-        L = args[0] / 2
+        W = int(args[1] / 2)
+        L = int(args[0] / 2)
         # Possible links
         # n = adjacency_matrix.shape[0]
-        V = args[2] / 2
+        V = int(args[2] / 2)
         # extracluster links
         # inter_links = V - V_o
 
@@ -693,8 +693,8 @@ def surprise_logsum_clust_enh(V_o, l_o, w_o, V, L, W):
     logP = logenhancedhypergeometric(V_o, l_o, w_o, V, L, W)
     logP1 = logP
 
-    for l_loop in np.arange(l_o, min_l_loop + 1):
-        for w_loop in np.arange(w_o, W + 1):
+    for l_loop in range(l_o, min_l_loop + 1):
+        for w_loop in range(w_o, W + 1):
             if (w_loop == w_o) and (l_loop == l_o):
                 continue
             nextLogP = logenhancedhypergeometric(V_o, l_loop, w_loop, V, L, W)
@@ -793,7 +793,11 @@ def calculate_surprise_logsum_clust_weigh_continuos(
         tot_weights,
         p,
         poss_intr_links)
-    return -np.log10(surprise), mem_intr_link
+
+    if surprise:
+        return -np.log10(surprise), mem_intr_link
+    else:
+        return surprise, mem_intr_link
 
 
 def continuous_surprise_clust(V, W, w_o, V_o):
@@ -845,7 +849,7 @@ def flipping_function_comdet(comm):
     return comm
 
 
-def flipping_function_comdet_new(
+def flipping_function_comdet_agl_new(
         calculate_surprise,
         adj,
         membership,
@@ -857,6 +861,41 @@ def flipping_function_comdet_new(
     list_neigh = ax.compute_neighbours(adj)
 
     for node, node_label in zip(np.arange(membership.shape[0]), membership):
+        for node2 in list_neigh[node]:
+            new_clust = membership[node2]
+            if node_label != new_clust:
+                aux_membership = membership.copy()
+                aux_membership[node] = new_clust
+                # print(np.array([node_label, new_clust]))
+                temp_surprise, temp_mem_intr_link = calculate_surprise(
+                    adjacency_matrix=adj,
+                    cluster_assignment=aux_membership,
+                    mem_intr_link=mem_intr_link.copy(),
+                    clust_labels=np.array([node_label, new_clust]),
+                    args=args,
+                    is_directed=is_directed)
+                if temp_surprise > surprise:
+                    membership = aux_membership.copy()
+                    surprise = temp_surprise
+                    mem_intr_link = temp_mem_intr_link
+
+    return membership
+
+
+def flipping_function_comdet_div_new(
+        calculate_surprise,
+        adj,
+        membership,
+        mem_intr_link,
+        args,
+        surprise,
+        is_directed):
+
+    list_neigh = ax.compute_neighbours(adj)
+
+    for node, node_label in zip(np.arange(membership.shape[0]), membership):
+        if len(np.where(membership==node_label)[0])==1:
+            continue
         for node2 in list_neigh[node]:
             new_clust = membership[node2]
             if node_label != new_clust:
