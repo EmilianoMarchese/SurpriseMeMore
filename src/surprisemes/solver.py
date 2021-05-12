@@ -334,7 +334,8 @@ def solver_com_det_divis(
                     args,
                     is_directed)
 
-                if surprise_temp1 > surprise:
+                aux_n_clus = np.unique(cluster_assignment_temp1).shape[0]
+                if (surprise_temp1 > surprise) and (n_clusters == aux_n_clus):
                     cluster_assignment = cluster_assignment_temp1.copy()
                     surprise = surprise_temp1
                     mem_intr_link = temp_mem_intr_link1
@@ -347,7 +348,8 @@ def solver_com_det_divis(
                     args,
                     is_directed)
 
-                if surprise_temp2 > surprise:
+                aux_n_clus = np.unique(cluster_assignment_temp2).shape[0]
+                if (surprise_temp2 > surprise) and (n_clusters == aux_n_clus):
                     cluster_assignment = cluster_assignment_temp2.copy()
                     surprise = surprise_temp2
                     mem_intr_link = temp_mem_intr_link2
@@ -368,7 +370,8 @@ def solver_com_det_divis(
                     args,
                     is_directed)
 
-                if surprise_temp1 > surprise:
+                aux_n_clus = np.unique(cluster_assignment_temp1).shape[0]
+                if (surprise_temp1 > surprise) and (n_clusters == aux_n_clus):
                     cluster_assignment = cluster_assignment_temp1.copy()
                     surprise = surprise_temp1
                     mem_intr_link = temp_mem_intr_link1
@@ -381,7 +384,8 @@ def solver_com_det_divis(
                     args,
                     is_directed)
 
-                if surprise_temp2 > surprise:
+                aux_n_clus = np.unique(cluster_assignment_temp2).shape[0]
+                if (surprise_temp2 > surprise) and (n_clusters == aux_n_clus):
                     cluster_assignment = cluster_assignment_temp2.copy()
                     surprise = surprise_temp2
                     mem_intr_link = temp_mem_intr_link2
