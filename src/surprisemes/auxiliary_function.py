@@ -114,7 +114,7 @@ def eigenvector_init_guess(adjacency, is_directed):
     return membership
 
 
-def fixed_clusters_init_guess_cn(adjacency, n_clust):
+def fixed_clusters_init_guess_cn_old(adjacency, n_clust):
     """ Generates an intial guess with a fixed number 'n' of clusters.
     Nodes are organised in clusters based on the number of common neighbors.
     The starting members of clusters are the 'n' nodes with higher
@@ -139,6 +139,70 @@ def fixed_clusters_init_guess_cn(adjacency, n_clust):
     for node in aux:
         aux_list = np.nonzero(aux_memb != n_clust)[0]
         node_index = aux_list[np.argmax(common_neigh[node, aux_list])]
+        if isinstance(node_index, np.ndarray):
+            node_index = np.random.choice(node_index)
+        aux_memb[node] = aux_memb[node_index]
+
+    return aux_memb
+
+
+def fixed_clusters_init_guess_cn(adjacency, n_clust):
+    """ Generates an intial guess with a fixed number 'n' of clusters.
+    Nodes are organised in clusters based on the number of common neighbors.
+    The starting members of clusters are the 'n' nodes with higher
+    degrees/strengths.
+
+    :param adjacency: Adjacency matrix.
+    :type adjacency: numpy.ndarray
+    :param n_clust: Partitions number.
+    :type n_clust: int
+    :return: Initial guess.
+    :rtype: numpy.ndarray
+    """
+
+    aux_memb = np.ones(adjacency.shape[0], dtype=np.int32) * (n_clust - 1)
+
+    cn = compute_cn(adjacency)
+    degree = adjacency.astype(np.bool_).sum(axis=1) + adjacency.astype(
+        np.bool_).sum(axis=0)
+    avg_degree = np.mean(degree)
+    degree_indices_g = np.nonzero(degree > 2)[0]
+    degree_indices_l = np.nonzero(degree <= 2)[0]
+
+    arg_max = np.argmax(degree[degree_indices_g])
+    clust_element = degree_indices_g[arg_max]
+
+    cluster_count = 0
+    while cluster_count != n_clust - 1:
+        aux_memb[clust_element] = cluster_count
+        degree_indices_g = np.delete(degree_indices_g, arg_max)
+        if len(degree_indices_g) == 0:
+            break
+        arg_max = np.argmin(cn[clust_element][degree_indices_g])
+        clust_element = degree_indices_g[arg_max]
+        cluster_count += 1
+
+    if np.unique(aux_memb).shape[0] < n_clust - 1:
+        cluster_count += 1
+        arg_max = np.argmax(degree[degree_indices_l])
+        clust_element = degree_indices_l[arg_max]
+        while cluster_count != n_clust - 1:
+            aux_memb[clust_element] = cluster_count
+            degree_indices_l = np.delete(degree_indices_l, arg_max)
+            if len(degree_indices_l) == 0:
+                raise ValueError(
+                    "The number of clusters is higher thant the nodes number.")
+            arg_max = np.argmin(cn[clust_element][degree_indices_l])
+            clust_element = np.argmin(cn[clust_element][degree_indices_l])
+            cluster_count += 1
+
+    aux = np.nonzero(aux_memb == n_clust - 1)[0]
+    np.random.shuffle(aux)
+    for node in aux:
+        if degree[node] < avg_degree:
+            continue
+        aux_list = np.nonzero(aux_memb != n_clust - 1)[0]
+        node_index = aux_list[np.argmax(cn[node, aux_list])]
         if isinstance(node_index, np.ndarray):
             node_index = np.random.choice(node_index)
         aux_memb[node] = aux_memb[node_index]
