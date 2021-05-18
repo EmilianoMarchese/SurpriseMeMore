@@ -9,6 +9,13 @@ from . import comdet_functions as cd
 from . import cp_functions as cp
 
 
+def compute_neighbours(adj):
+    lista_neigh = []
+    for ii in np.arange(adj.shape[0]):
+        lista_neigh.append(adj[ii,:].nonzero()[0])
+    return lista_neigh
+
+
 @jit(nopython=True)
 def compute_cn(adjacency):
     """ Computes common neighbours table, each entry i,j of this table is the
@@ -30,9 +37,10 @@ def compute_cn(adjacency):
 
 
 @jit(nopython=True)
-def common_neigh_init_guess(adjacency):
+def common_neigh_init_guess_strong(adjacency):
     """Generates a preprocessed initial guess based on the common neighbours
-     of nodes.
+     of nodes. It makes a stronger aggregation of nodes based on
+      the common neighbours similarity.
 
     :param adjacency: Adjacency matrix.
     :type adjacency: numpy.ndarray
@@ -42,9 +50,35 @@ def common_neigh_init_guess(adjacency):
     cn_table = compute_cn(adjacency)
     memberships = np.array(
         [k for k in np.arange(adjacency.shape[0], dtype=np.int32)])
-    for ii in np.arange(adjacency.shape[0]):
-        aux_node1 = np.random.choice(memberships)
-        memberships[aux_node1] = memberships[np.argmax(cn_table[aux_node1])]
+    argsorted = np.argsort(adjacency.astype(np.bool_).sum(axis=1))[::-1]
+    for aux_node1 in argsorted:
+        aux_tmp = memberships == aux_node1
+        memberships[aux_tmp] = memberships[np.argmax(cn_table[aux_node1])]
+    return memberships
+
+
+@jit(nopython=True)
+def common_neigh_init_guess_weak(adjacency):
+    """Generates a preprocessed initial guess based on the common neighbours
+     of nodes. It makes a weaker aggregation of nodes based on
+      the common neighbours similarity.
+
+    :param adjacency: Adjacency matrix.
+    :type adjacency: numpy.ndarray
+    :return: Initial guess for nodes memberships.
+    :rtype: np.array
+    """
+    cn_table = compute_cn(adjacency)
+    memberships = np.array(
+        [k for k in np.arange(adjacency.shape[0], dtype=np.int32)])
+    degree = (adjacency.astype(np.bool_).sum(axis=1)
+              + adjacency.astype(np.bool_).sum(axis=0))
+    avg_degree = np.mean(degree)
+    argsorted = np.argsort(degree)[::-1]
+    for aux_node1 in argsorted:
+        if (degree[aux_node1]>=avg_degree):
+            aux_tmp = memberships == aux_node1
+            memberships[aux_tmp] = memberships[np.argmax(cn_table[aux_node1])]
     return memberships
 
 
@@ -67,22 +101,20 @@ def eigenvector_init_guess(adjacency, is_directed):
         graph = nx.from_numpy_array(adjacency, create_using=nx.DiGraph)
         centra = nx.eigenvector_centrality_numpy(graph)
         centra1 = np.array([centra[key] for key in centra])
-        membership = np.zeros_like(centra1, dtype=np.int32)
-        membership[np.argsort(centra1)[::-1][:aux_nodes]] = 1
+        membership = np.ones_like(centra1, dtype=np.int32)
+        membership[np.argsort(centra1)[::-1][:aux_nodes]] = 0
 
     else:
         graph = nx.from_numpy_array(adjacency, create_using=nx.Graph)
         centra = nx.eigenvector_centrality_numpy(graph)
         centra1 = np.array([centra[key] for key in centra])
-        membership = np.zeros_like(centra1, dtype=np.int32)
-        #print(aux_nodes)
-        #print(membership[np.argsort(centra1)[::-1]][:aux_nodes])
-        membership[np.argsort(centra1)[::-1][:aux_nodes]] = 1
+        membership = np.ones_like(centra1, dtype=np.int32)
+        membership[np.argsort(centra1)[::-1][:aux_nodes]] = 0
 
     return membership
 
 
-def fixed_clusters_init_guess_cn(adjacency, n_clust):
+def fixed_clusters_init_guess_cn_old(adjacency, n_clust):
     """ Generates an intial guess with a fixed number 'n' of clusters.
     Nodes are organised in clusters based on the number of common neighbors.
     The starting members of clusters are the 'n' nodes with higher
@@ -107,6 +139,70 @@ def fixed_clusters_init_guess_cn(adjacency, n_clust):
     for node in aux:
         aux_list = np.nonzero(aux_memb != n_clust)[0]
         node_index = aux_list[np.argmax(common_neigh[node, aux_list])]
+        if isinstance(node_index, np.ndarray):
+            node_index = np.random.choice(node_index)
+        aux_memb[node] = aux_memb[node_index]
+
+    return aux_memb
+
+
+def fixed_clusters_init_guess_cn(adjacency, n_clust):
+    """ Generates an intial guess with a fixed number 'n' of clusters.
+    Nodes are organised in clusters based on the number of common neighbors.
+    The starting members of clusters are the 'n' nodes with higher
+    degrees/strengths.
+
+    :param adjacency: Adjacency matrix.
+    :type adjacency: numpy.ndarray
+    :param n_clust: Partitions number.
+    :type n_clust: int
+    :return: Initial guess.
+    :rtype: numpy.ndarray
+    """
+
+    aux_memb = np.ones(adjacency.shape[0], dtype=np.int32) * (n_clust - 1)
+
+    cn = compute_cn(adjacency)
+    degree = adjacency.astype(np.bool_).sum(axis=1) + adjacency.astype(
+        np.bool_).sum(axis=0)
+    avg_degree = np.mean(degree)
+    degree_indices_g = np.nonzero(degree > 2)[0]
+    degree_indices_l = np.nonzero(degree <= 2)[0]
+
+    arg_max = np.argmax(degree[degree_indices_g])
+    clust_element = degree_indices_g[arg_max]
+
+    cluster_count = 0
+    while cluster_count != n_clust - 1:
+        aux_memb[clust_element] = cluster_count
+        degree_indices_g = np.delete(degree_indices_g, arg_max)
+        if len(degree_indices_g) == 0:
+            break
+        arg_max = np.argmin(cn[clust_element][degree_indices_g])
+        clust_element = degree_indices_g[arg_max]
+        cluster_count += 1
+
+    if np.unique(aux_memb).shape[0] < n_clust - 1:
+        cluster_count += 1
+        arg_max = np.argmax(degree[degree_indices_l])
+        clust_element = degree_indices_l[arg_max]
+        while cluster_count != n_clust - 1:
+            aux_memb[clust_element] = cluster_count
+            degree_indices_l = np.delete(degree_indices_l, arg_max)
+            if len(degree_indices_l) == 0:
+                raise ValueError(
+                    "The number of clusters is higher thant the nodes number.")
+            arg_max = np.argmin(cn[clust_element][degree_indices_l])
+            clust_element = np.argmin(cn[clust_element][degree_indices_l])
+            cluster_count += 1
+
+    aux = np.nonzero(aux_memb == n_clust - 1)[0]
+    np.random.shuffle(aux)
+    for node in aux:
+        if degree[node] < avg_degree:
+            continue
+        aux_list = np.nonzero(aux_memb != n_clust - 1)[0]
+        node_index = aux_list[np.argmax(cn[node, aux_list])]
         if isinstance(node_index, np.ndarray):
             node_index = np.random.choice(node_index)
         aux_memb[node] = aux_memb[node_index]
@@ -572,8 +668,8 @@ def surprise_bipartite_cp_enh(V_o, l_o, V_c, l_c, w_o, w_c, V, L, W):
             for w_o_loop in np.arange(w_o, W + 1):
                 aux_third_temp = aux_third
                 for w_c_loop in np.arange(w_c, W + 1 - w_o_loop):
-                    aux = logMultiHyperProbabilityWeightEnh(V_o, l_o_loop, V_c,
-                                                            l_c_loop,
+                    aux = logMultiHyperProbabilityWeightEnh(V_o, l_o_loop,
+                                                            V_c, l_c_loop,
                                                             w_o_loop, w_c_loop,
                                                             V, L, W)
                     surprise += aux
@@ -583,8 +679,8 @@ def surprise_bipartite_cp_enh(V_o, l_o, V_c, l_c, w_o, w_c, V, L, W):
                     if aux / surprise < 1e-3:
                         break
 
-                aux = logMultiHyperProbabilityWeightEnh(V_o, l_o_loop, V_c,
-                                                        l_c_loop,
+                aux = logMultiHyperProbabilityWeightEnh(V_o, l_o_loop,
+                                                        V_c, l_c_loop,
                                                         w_o_loop, w_c_loop,
                                                         V, L, W)
                 aux_third += aux
@@ -729,3 +825,123 @@ def logenhancedhypergeometric(V_o, l_o, w_o, V, L, W):
     aux1 = (comb(V_o, l_o, True) * comb(V - V_o, L - l_o, True)) / comb(V , L, True)
     aux2 = (comb(w_o - 1, w_o - l_o, True) * comb(W - w_o - 1, (W - L) - (w_o - l_o), True)) / comb(W - 1, W - L, True)
     return aux1 * aux2
+
+
+def evaluate_surprise_cp_continuous(adjacency_matrix,
+                                    cluster_assignment,
+                                    is_directed):
+    """Computes core-periphery weighted continuous log-surprise given a certain nodes' partitioning.
+
+    :param adjacency_matrix: Weighted adjacency matrix.
+    :type adjacency_matrix: numpy.ndarray
+    :param cluster_assignment: Core periphery assigments.
+    :type cluster_assignment: numpy.ndarray
+    :param is_directed: True if the graph is directed.
+    :type is_directed: bool
+    :return: Log-surprise
+    :rtype: float
+    """
+    core_nodes = np.unique(np.where(cluster_assignment == 0)[0])
+    periphery_nodes = np.unique(np.where(cluster_assignment == 1)[0])
+
+    if is_directed:
+        n_c = core_nodes.shape[0]
+        n_x = periphery_nodes.shape[0]
+        p_c = n_c * (n_c - 1)
+        p_x = n_c * n_x * 2
+
+        w_c = cp.compute_sum(adjacency_matrix, core_nodes, core_nodes)
+        w_x = cp.compute_sum(
+                          adjacency_matrix,
+                          core_nodes,
+                          periphery_nodes) + cp.compute_sum(
+                                                    adjacency_matrix,
+                                                    periphery_nodes,
+                                                    core_nodes)
+
+        w = np.sum(adjacency_matrix)
+        w_p = w - w_c - w_x
+        n = n_c + n_x
+        p = n * (n - 1)
+        p_p = p - p_c - p_x
+
+    else:
+        n_c = core_nodes.shape[0]
+        n_x = periphery_nodes.shape[0]
+        p_c = n_c * (n_c-1) / 2
+        p_x = n_c * n_x
+
+        w_c = (cp.compute_sum(adjacency_matrix, core_nodes, core_nodes))/2
+        w_x = (cp.compute_sum(
+                        adjacency_matrix,
+                        core_nodes,
+                        periphery_nodes) + cp.compute_sum(
+                                                    adjacency_matrix,
+                                                    periphery_nodes,
+                                                    core_nodes))/2
+
+        w = np.sum(adjacency_matrix)/2
+        w_p = (w - w_c - w_x)/2
+        n = n_c + n_x
+        p = n * (n - 1) / 2
+        p_p = p - p_c - p_x
+
+    surprise = cp.continuous_surprise_cp(w_x, w_c, p, w, p_c, p_x)
+    return surprise
+
+
+def evaluate_surprise_com_det_continuous(
+        adjacency_matrix,
+        cluster_assignment,
+        is_directed):
+    """Calculates the logarithm of the continuous surprise given
+     the current partitions for a weighted network.
+
+    :param adjacency_matrix: Weighted adjacency matrix.
+    :type adjacency_matrix: numpy.ndarray
+    :param cluster_assignment: Nodes memberships.
+    :type cluster_assignment: numpy.ndarray
+    :param is_directed: True if the graph is directed.
+    :type is_directed: bool
+    :return: Log-surprise.
+    :rtype: float
+    """
+    if is_directed:
+        # intracluster weights
+        w = cd.intracluster_links(adjacency_matrix,
+                                  cluster_assignment)
+        # intracluster possible links
+        poss_intr_links = cd.calculate_possible_intracluster_links(
+            cluster_assignment,
+            is_directed)
+        # Total Weight
+        tot_weights = np.sum(adjacency_matrix)
+        # Possible links
+        n = adjacency_matrix.shape[0]
+        poss_links = n * (n - 1)
+        # extracluster links
+        inter_links = poss_links - poss_intr_links
+    else:
+        # intracluster weights
+        w = cd.intracluster_links(adjacency_matrix,
+                                  cluster_assignment) / 2
+        # intracluster possible links
+        poss_intr_links = cd.calculate_possible_intracluster_links(
+            cluster_assignment,
+            is_directed)
+        # Total Weight
+        tot_weights = np.sum(adjacency_matrix) / 2
+        # Possible links
+        n = adjacency_matrix.shape[0]
+        poss_links = int((n * (n - 1)) / 2)
+        # extracluster links
+        inter_links = poss_links - poss_intr_links
+
+    surprise = cd.continuous_surprise_clust(
+        V=poss_links,
+        W=tot_weights,
+        w_o=w,
+        V_o=poss_intr_links)
+
+    return surprise
+

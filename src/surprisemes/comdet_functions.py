@@ -1,7 +1,13 @@
-import numpy as np
-from numba import jit
-
 from . import auxiliary_function as ax
+
+import numpy as np
+import scipy.integrate as integrate
+from mpmath import mp, ncdf, log10, quad, beta
+from numba import jit
+from sympy import beta
+
+mp.dps = 100
+mp.pretty = True
 
 
 def calculate_possible_intracluster_links(partitions, is_directed):
@@ -120,7 +126,7 @@ def calculate_surprise_logsum_clust_bin(adjacency_matrix,
         p = intracluster_links(
             adjacency_matrix,
             cluster_assignment)
-        int_links = int(p)
+        int_links = p
         # All the possible intracluster links
         poss_int_links = calculate_possible_intracluster_links(
             cluster_assignment,
@@ -135,16 +141,16 @@ def calculate_surprise_logsum_clust_bin(adjacency_matrix,
         p = intracluster_links(
             adjacency_matrix,
             cluster_assignment)
-        int_links = int(p / 2)
+        int_links = p / 2
         # All the possible intracluster links
-        poss_int_links = int(calculate_possible_intracluster_links(
+        poss_int_links = calculate_possible_intracluster_links(
             cluster_assignment,
-            is_directed))
+            is_directed)
         # Observed links
         obs_links = np.sum(adjacency_matrix.astype(bool)) / 2
         # Possible links
         n = adjacency_matrix.shape[0]
-        poss_links = int((n * (n - 1)) / 2)
+        poss_links = (n * (n - 1)) / 2
 
     surprise = surprise_logsum_clust_bin(
         poss_links,
@@ -161,6 +167,7 @@ def calculate_surprise_logsum_clust_bin_new(
         mem_intr_link,
         clust_labels,
         args,
+        approx,
         is_directed):
     """Calculates the logarithm of the surprise given the current partitions
      for a binary network. New faster implementation reducing the number of
@@ -176,6 +183,8 @@ def calculate_surprise_logsum_clust_bin_new(
     :type clust_labels: np.array
     :param args: (Observed links, nodes number, possible links)
     :type args: (int, int)
+    :param approx:
+    :type approx:
     :param is_directed: True if the graph is directed.
     :type is_directed: bool
     :return: Log-surprise.                                                                              
@@ -190,18 +199,18 @@ def calculate_surprise_logsum_clust_bin_new(
                 partitions=cluster_assignment)
 
             for node_label, nr_links in zip(clust_labels, int_links):
-                mem_intr_link[node_label] = nr_links
+                mem_intr_link[0][node_label] = nr_links
 
-        p = np.sum(mem_intr_link)
+        p = np.sum(mem_intr_link[0])
         int_links = int(p)
         # All the possible intracluster links                                                           
-        poss_int_links = calculate_possible_intracluster_links_new(
+        poss_int_links = int(calculate_possible_intracluster_links_new(
             cluster_assignment,
-            is_directed)
+            is_directed))
         # Observed links                                                                                
-        obs_links = args[0]
+        obs_links = int(args[0])
         # Possible link
-        poss_links = args[1]
+        poss_links = int(args[2])
     else:
         # intracluster links
         if len(clust_labels):
@@ -211,26 +220,45 @@ def calculate_surprise_logsum_clust_bin_new(
                 partitions=cluster_assignment)
 
             for node_label, nr_links in zip(clust_labels, int_links):
-                mem_intr_link[node_label] = nr_links
+                mem_intr_link[0][node_label] = nr_links
 
-        p = np.sum(mem_intr_link)
+        p = np.sum(mem_intr_link[0])
         int_links = int(p / 2)
         # All the possible intracluster links                                                           
         poss_int_links = int(calculate_possible_intracluster_links_new(
             cluster_assignment,
             is_directed))
         # Observed links                                                                                
-        obs_links = args[0] / 2
+        obs_links = int(args[0] / 2)
         # Possible links
-        poss_links = int(args[1] / 2)
+        poss_links = int(args[2] / 2)
 
-    surprise = surprise_logsum_clust_bin(
-        poss_links,
-        int_links,
-        poss_int_links,
-        obs_links)
+    if approx == "gaussian":
+        surprise = binary_surp_gauss_approx(poss_links,
+                                            poss_int_links,
+                                            obs_links,
+                                            int_links)
+        if surprise > 0:
+            surprise = np.float64(-log10(surprise))
+        else:
+            surprise = 0
+
+    elif approx == "asynthotic":
+        surprise = 0
+    else:
+        surprise = surprise_logsum_clust_bin(
+            poss_links,
+            int_links,
+            poss_int_links,
+            obs_links)
 
     return surprise, mem_intr_link
+
+
+def binary_surp_gauss_approx(V, V0, L, l0):
+    pi = V0 / V
+    P = ncdf(-(l0 - 1 - L * pi) / (np.sqrt(L * pi * (1 - pi))))
+    return P
 
 
 @jit(nopython=True)
@@ -248,11 +276,11 @@ def surprise_logsum_clust_bin(F, p, M, m):
     :return: [description]
     :rtype: [type]
     """
-    stop = False
+    # stop = False
     min_p = min(M, m)
 
     logP = loghyperprobability(F, p, M, m)
-    for p_loop in np.arange(p, min_p + 1):
+    for p_loop in range(p, min_p + 1):
         if p_loop == p:
             continue
         nextLogP = loghyperprobability(F, p_loop, M, m)
@@ -325,7 +353,7 @@ def calculate_surprise_logsum_clust_weigh(
         tot_weights = np.sum(adjacency_matrix) / 2
         # Possible links
         n = adjacency_matrix.shape[0]
-        poss_links = int((n * (n - 1)) / 2)
+        poss_links = (n * (n - 1)) / 2
         # extracluster links
         inter_links = poss_links - poss_intr_links
 
@@ -344,6 +372,7 @@ def calculate_surprise_logsum_clust_weigh_new(
         mem_intr_link,
         clust_labels,
         args,
+        approx,
         is_directed):
     """Calculates the logarithm of the surprise given the current partitions
      for a weighted network. New faster implementation.
@@ -358,6 +387,8 @@ def calculate_surprise_logsum_clust_weigh_new(
     :type clust_labels:
     :param args:
     :type args:
+    :param approx:
+    :type approx:
     :param is_directed: True if the graph is directed.
     :type is_directed: bool
     :return: Log-surprise.
@@ -372,18 +403,18 @@ def calculate_surprise_logsum_clust_weigh_new(
                 partitions=cluster_assignment)
 
             for node_label, nr_links in zip(clust_labels, w):
-                mem_intr_link[node_label] = nr_links
+                mem_intr_link[1][node_label] = nr_links
 
-        p = np.sum(mem_intr_link)
-        intr_weights = int(p)
+        p = np.sum(mem_intr_link[1])
+        intr_weights = p
         # intracluster possible links
-        poss_intr_links = calculate_possible_intracluster_links(
+        poss_intr_links = calculate_possible_intracluster_links_new(
             cluster_assignment,
             is_directed)
         # Total Weight
-        tot_weights = args[0]
+        tot_weights = args[1]
         # Possible links
-        poss_links = args[1]
+        poss_links = args[2]
         # extracluster links
         inter_links = poss_links - poss_intr_links
     else:
@@ -395,28 +426,49 @@ def calculate_surprise_logsum_clust_weigh_new(
                 partitions=cluster_assignment)
 
             for node_label, nr_links in zip(clust_labels, w):
-                mem_intr_link[node_label] = nr_links
+                mem_intr_link[1][node_label] = nr_links
 
-        p = np.sum(mem_intr_link)
-        intr_weights = int(p / 2)
+        p = np.sum(mem_intr_link[1])
+        intr_weights = p / 2
         # intracluster possible links
-        poss_intr_links = calculate_possible_intracluster_links(
+        poss_intr_links = calculate_possible_intracluster_links_new(
             cluster_assignment,
             is_directed)
         # Total Weight
-        tot_weights = int(args[0] / 2)
+        tot_weights = args[1] / 2
         # Possible links
-        poss_links = int(args[1] / 2)
+        poss_links = args[2] / 2
         # extracluster links
         inter_links = poss_links - poss_intr_links
 
-    surprise = surprise_logsum_clust_weigh(
-        poss_intr_links,
-        intr_weights,
-        inter_links,
-        tot_weights,
-        poss_links)
+    if approx == "gaussian":
+        surprise = weighted_suprise_approx(
+            poss_links,
+            tot_weights,
+            intr_weights,
+            poss_intr_links)
+        if surprise > 0:
+            surprise = np.float64(-log10(surprise))
+        else:
+            surprise = 0
+    elif approx == "asynthotic":
+        surprise = 0
+    else:
+        surprise = surprise_logsum_clust_weigh(
+            poss_intr_links,
+            intr_weights,
+            inter_links,
+            tot_weights,
+            poss_links)
     return surprise, mem_intr_link
+
+
+def weighted_suprise_approx(V, W, w_o, V_o):
+    """Gaussian approximation of surprise.
+    """
+    rho = W / V
+    aux = ncdf(-(w_o - 1 - V_o * rho) / (np.sqrt(V_o * rho * (1 + rho))))
+    return aux
 
 
 @jit(nopython=True)
@@ -436,7 +488,7 @@ def surprise_logsum_clust_weigh(Vi, w, Ve, W, V):
     :return: [description]
     :rtype: [type]
     """
-    stop = False
+    # stop = False
 
     logP = lognegativehyperprobability(Vi, w, Ve, W, V)
     for w_loop in range(w, W):
@@ -501,6 +553,30 @@ def intracluster_links_enh(adj, partitions):
 
 
 @jit(nopython=True)
+def intracluster_links_enh_new(adj, clust_labels, partitions):
+    """Computes intracluster links and weights for enhanced community
+     detection method.
+
+    :param adj: Adjacency matrix.
+    :type adj: numpy.array
+    :param clust_labels:
+    :type clust_labels:
+    :param partitions: Nodes memberships.
+    :type partitions: numpy.array
+    :return: Number of intra-cluster links/weights.
+    :rtype: float
+    """
+    nr_intr_clust_links = np.zeros(clust_labels.shape[0])
+    intr_weight = np.zeros(clust_labels.shape[0])
+    for ii, lab in enumerate(clust_labels):
+        indices = np.where(partitions == lab)[0]
+        aux_l, aux_w = intracluster_links_aux_enh(adj, indices)
+        nr_intr_clust_links[ii] = aux_l
+        intr_weight[ii] = aux_w
+    return nr_intr_clust_links, intr_weight
+
+
+@jit(nopython=True)
 def intracluster_links_aux_enh(adj, indices):
     """Computes intra-cluster links or weights given nodes indices.
 
@@ -552,7 +628,7 @@ def calculate_surprise_logsum_clust_enhanced(
         n = adjacency_matrix.shape[0]
         V = n * (n - 1)
         # extracluster links
-        inter_links = V - V_o
+        # inter_links = V - V_o
     else:
         # intracluster weights
         l_o, w_o = intracluster_links_enh(adjacency_matrix,
@@ -568,9 +644,9 @@ def calculate_surprise_logsum_clust_enhanced(
         L = np.sum(adjacency_matrix.astype(bool)) / 2
         # Possible links
         n = adjacency_matrix.shape[0]
-        V = int((n * (n - 1)) / 2)
+        V = (n * (n - 1)) / 2
         # extracluster links
-        inter_links = V - V_o
+        # inter_links = V - V_o
 
     # print("V_0", V_o, "l_0", l_o, "w_0", w_o, "V", V, "L", L, "W", W)
 
@@ -578,17 +654,106 @@ def calculate_surprise_logsum_clust_enhanced(
     return surprise
 
 
+def calculate_surprise_logsum_clust_enhanced_new(
+        adjacency_matrix,
+        cluster_assignment,
+        mem_intr_link,
+        clust_labels,
+        args,
+        approx,
+        is_directed):
+    """Calculates, for a weighted network, the logarithm of the enhanced
+     surprise given the current partitioning.
+
+    :param adjacency_matrix: Weighted adjacency matrix.
+    :type adjacency_matrix: numpy.ndarray
+    :param cluster_assignment: Nodes memberships.
+    :type cluster_assignment: numpy.ndarray
+    :param mem_intr_link:
+    :type mem_intr_link:
+    :param clust_labels:
+    :type clust_labels:
+    :param args:
+    :type args:
+    :param approx:
+    :type approx:
+    :param is_directed: True if the graph is directed.
+    :type is_directed: bool
+    :return: Log-surprise.
+    :rtype: float
+    """
+    if is_directed:
+        # intracluster weights
+        if len(clust_labels):
+            l_aux, w_aux = intracluster_links_enh_new(
+                adj=adjacency_matrix,
+                clust_labels=clust_labels,
+                partitions=cluster_assignment)
+
+            for node_label, nr_links, w_int in zip(clust_labels, l_aux, w_aux):
+                mem_intr_link[0][node_label] = nr_links
+                mem_intr_link[1][node_label] = w_int
+
+        l_o = int(mem_intr_link[0].sum())
+        w_o = int(mem_intr_link[1].sum())
+
+        # intracluster possible links
+        V_o = int(calculate_possible_intracluster_links_new(
+            cluster_assignment,
+            is_directed))
+        # Total Weight
+        W = int(args[1])
+        L = int(args[0])
+        # Possible links
+        # n = adjacency_matrix.shape[0]
+        V = int(args[2])
+        # extracluster links
+        # inter_links = V - V_o
+    else:
+        # intracluster weights
+        if len(clust_labels):
+            l_aux, w_aux = intracluster_links_enh_new(
+                adj=adjacency_matrix,
+                clust_labels=clust_labels,
+                partitions=cluster_assignment)
+
+            for node_label, nr_links, w_int in zip(clust_labels, l_aux, w_aux):
+                mem_intr_link[0][node_label] = nr_links
+                mem_intr_link[1][node_label] = w_int
+
+        l_o = int(mem_intr_link[0].sum() / 2)
+        w_o = int(mem_intr_link[1].sum() / 2)
+
+        # intracluster possible links
+        V_o = int(calculate_possible_intracluster_links_new(
+            cluster_assignment,
+            is_directed))
+        # Total Weight
+        W = int(args[1] / 2)
+        L = int(args[0] / 2)
+        # Possible links
+        # n = adjacency_matrix.shape[0]
+        V = int(args[2] / 2)
+        # extracluster links
+        # inter_links = V - V_o
+
+    # print("V_0", V_o, "l_0", l_o, "w_0", w_o, "V", V, "L", L, "W", W)
+
+    surprise = surprise_logsum_clust_enh(V_o, l_o, w_o, V, L, W)
+    return surprise, mem_intr_link
+
+
 @jit(nopython=True)
 def surprise_logsum_clust_enh(V_o, l_o, w_o, V, L, W):
-    stop = False
-    stop1 = False
+    # stop = False
+    # stop1 = False
     min_l_loop = min(L, V_o)
 
     logP = logenhancedhypergeometric(V_o, l_o, w_o, V, L, W)
     logP1 = logP
 
-    for l_loop in np.arange(l_o, min_l_loop + 1):
-        for w_loop in np.arange(w_o, W + 1):
+    for l_loop in range(l_o, min_l_loop + 1):
+        for w_loop in range(w_o, W + 1):
             if (w_loop == w_o) and (l_loop == l_o):
                 continue
             nextLogP = logenhancedhypergeometric(V_o, l_loop, w_loop, V, L, W)
@@ -605,9 +770,124 @@ def surprise_logsum_clust_enh(V_o, l_o, w_o, V, L, W):
 
 @jit(nopython=True)
 def logenhancedhypergeometric(V_o, l_o, w_o, V, L, W):
-    aux1 = (ax.logc(V_o, l_o) + ax.logc(V - V_o, L - l_o)) - ax.logc(V , L)
-    aux2 = (ax.logc(w_o - 1, w_o - l_o) + ax.logc(W - w_o - 1, (W - L) - (w_o - l_o))) - ax.logc(W - 1, W - L)
-    return aux1 * aux2
+    aux1 = (ax.logc(V_o, l_o) + ax.logc(V - V_o, L - l_o)) - ax.logc(V, L)
+    aux2 = (ax.logc(w_o - 1, w_o - l_o) + ax.logc(W - w_o - 1, (W - L) - (
+                w_o - l_o))) - ax.logc(W - 1, W - L)
+    return aux1 + aux2
+
+
+def calculate_surprise_logsum_clust_weigh_continuos(
+        adjacency_matrix,
+        cluster_assignment,
+        mem_intr_link,
+        clust_labels,
+        args,
+        approx,
+        is_directed):
+    """Calculates the logarithm of the continuos surprise given the current
+     partitions for a weighted network. New faster implementation.
+
+
+    :param adjacency_matrix: Weighted adjacency matrix.
+    :type adjacency_matrix: numpy.ndarray
+    :param cluster_assignment: Nodes memberships.
+    :type cluster_assignment: numpy.ndarray
+    :param mem_intr_link:
+    :type mem_intr_link:
+    :param clust_labels:
+    :type clust_labels:
+    :param args:
+    :type args:
+    :param approx:
+    :type approx:
+    :param is_directed: True if the graph is directed.
+    :type is_directed: bool
+    :return: Log-surprise.
+    :rtype: float
+    """
+    if is_directed:
+        # intracluster weights
+        if len(clust_labels):
+            w = intracluster_links_new(
+                adj=adjacency_matrix,
+                clust_labels=clust_labels,
+                partitions=cluster_assignment)
+
+            for node_label, nr_links in zip(clust_labels, w):
+                mem_intr_link[1][node_label] = nr_links
+
+        p = np.sum(mem_intr_link[1])
+        intr_weights = p
+        # intracluster possible links
+        poss_intr_links = calculate_possible_intracluster_links_new(
+            cluster_assignment,
+            is_directed)
+        # Total Weight
+        tot_weights = args[1]
+        # Possible links
+        poss_links = args[2]
+        # extracluster links
+        # inter_links = poss_links - poss_intr_links
+    else:
+        # intracluster weights
+        if len(clust_labels):
+            w = intracluster_links_new(
+                adj=adjacency_matrix,
+                clust_labels=clust_labels,
+                partitions=cluster_assignment)
+
+            for node_label, nr_links in zip(clust_labels, w):
+                mem_intr_link[1][node_label] = nr_links
+
+        p = np.sum(mem_intr_link[1])
+        intr_weights = p / 2
+        # intracluster possible links
+        poss_intr_links = calculate_possible_intracluster_links_new(
+            cluster_assignment,
+            is_directed)
+        # Total Weight
+        tot_weights = args[1] / 2
+        # Possible links
+        poss_links = args[2] / 2
+        # extracluster links
+        # inter_links = poss_links - poss_intr_links
+
+    if approx == "gaussian":
+        surprise = weighted_suprise_approx(
+            poss_links,
+            tot_weights,
+            intr_weights,
+            poss_intr_links)
+        if surprise > 0:
+            surprise = np.float64(-log10(surprise))
+        else:
+            surprise = 0
+    elif approx == "asynthotic":
+        surprise = 0
+    else:
+        surprise = continuous_surprise_clust(
+            poss_links,
+            tot_weights,
+            intr_weights,
+            poss_intr_links)
+
+        if surprise > 0:
+            surprise = np.float64(-log10(surprise))
+        else:
+            surprise = 0
+
+    return surprise, mem_intr_link
+
+
+def continuous_surprise_clust(V, W, w_o, V_o):
+    f = lambda x: integrand_clust(x, V, W, V_o)
+    aux_surp = quad(f, [w_o, W], method="gauss-legendre")
+    return aux_surp
+
+
+def integrand_clust(w_o, V, W, V_o):
+    aux = W * beta(V, W) / (w_o*beta(V_o, w_o) * (W-w_o) * beta(V-V_o, W-w_o))
+    return aux
 
 
 def labeling_communities(partitions):
@@ -648,39 +928,67 @@ def flipping_function_comdet(comm):
     return comm
 
 
-def flipping_function_comdet_new(adj,
-                                 membership,
-                                 is_directed):
-    obs_links = int(np.sum(adj.astype(bool)))
-    n_nodes = int(adj.shape[0])
-    poss_links = int(n_nodes * (n_nodes - 1))
-    args = (obs_links, poss_links)
+def flipping_function_comdet_agl_new(
+        calculate_surprise,
+        adj,
+        membership,
+        mem_intr_link,
+        args,
+        surprise,
+        approx,
+        is_directed):
+    list_neigh = ax.compute_neighbours(adj)
 
-    surprise = calculate_surprise_logsum_clust_bin(
-        adjacency_matrix=adj,
-        cluster_assignment=membership,
-        is_directed=is_directed)
-
-    mem_intr_link = np.zeros(membership.shape[0], dtype=np.int32)
-    # print(np.unique(membership), mem_intr_link, membership)
-    for ii in np.unique(membership):
-        indices = np.where(membership == ii)[0]
-        mem_intr_link[ii] = intracluster_links_aux(adj, indices)
-
-    # print("siamo qui")
     for node, node_label in zip(np.arange(membership.shape[0]), membership):
-
-        for new_clust in np.unique(membership):
+        for node2 in list_neigh[node]:
+            new_clust = membership[node2]
             if node_label != new_clust:
                 aux_membership = membership.copy()
                 aux_membership[node] = new_clust
                 # print(np.array([node_label, new_clust]))
-                temp_surprise, temp_mem_intr_link = calculate_surprise_logsum_clust_bin_new(
+                temp_surprise, temp_mem_intr_link = calculate_surprise(
                     adjacency_matrix=adj,
                     cluster_assignment=aux_membership,
                     mem_intr_link=mem_intr_link.copy(),
                     clust_labels=np.array([node_label, new_clust]),
                     args=args,
+                    approx=approx,
+                    is_directed=is_directed)
+                if temp_surprise > surprise:
+                    membership = aux_membership.copy()
+                    surprise = temp_surprise
+                    mem_intr_link = temp_mem_intr_link
+
+    return membership
+
+
+def flipping_function_comdet_div_new(
+        calculate_surprise,
+        adj,
+        membership,
+        mem_intr_link,
+        args,
+        surprise,
+        approx,
+        is_directed):
+    list_neigh = ax.compute_neighbours(adj)
+
+    for node, node_label in zip(np.arange(membership.shape[0]), membership):
+        if len(np.where(membership == node_label)[0]) == 1:
+            continue
+        for node2 in list_neigh[node]:
+            new_clust = membership[node2]
+            if node_label != new_clust:
+                aux_membership = membership.copy()
+                aux_membership[node] = new_clust
+                # print(np.array([node_label, new_clust]))
+                temp_surprise, temp_mem_intr_link = calculate_surprise(
+                    adjacency_matrix=adj,
+                    cluster_assignment=aux_membership,
+                    mem_intr_link=mem_intr_link.copy(),
+                    clust_labels=np.array([node_label, new_clust]),
+                    args=args,
+                    approx=approx,
                     is_directed=is_directed)
                 if temp_surprise > surprise:
                     membership = aux_membership.copy()
