@@ -1,9 +1,13 @@
+from . import auxiliary_function as ax
+
 import numpy as np
+import scipy.integrate as integrate
+from mpmath import mp, ncdf, log10, quad, beta
 from numba import jit
 from sympy import beta
-import scipy.integrate as integrate
 
-from . import auxiliary_function as ax
+mp.dps = 100
+mp.pretty = True
 
 
 def calculate_possible_intracluster_links(partitions, is_directed):
@@ -163,6 +167,7 @@ def calculate_surprise_logsum_clust_bin_new(
         mem_intr_link,
         clust_labels,
         args,
+        approx,
         is_directed):
     """Calculates the logarithm of the surprise given the current partitions
      for a binary network. New faster implementation reducing the number of
@@ -178,6 +183,8 @@ def calculate_surprise_logsum_clust_bin_new(
     :type clust_labels: np.array
     :param args: (Observed links, nodes number, possible links)
     :type args: (int, int)
+    :param approx:
+    :type approx:
     :param is_directed: True if the graph is directed.
     :type is_directed: bool
     :return: Log-surprise.                                                                              
@@ -226,13 +233,32 @@ def calculate_surprise_logsum_clust_bin_new(
         # Possible links
         poss_links = int(args[2] / 2)
 
-    surprise = surprise_logsum_clust_bin(
-        poss_links,
-        int_links,
-        poss_int_links,
-        obs_links)
+    if approx == "gaussian":
+        surprise = binary_surp_gauss_approx(poss_links,
+                                            poss_int_links,
+                                            obs_links,
+                                            int_links)
+        if surprise > 0:
+            surprise = np.float64(-log10(surprise))
+        else:
+            surprise = 0
+
+    elif approx == "asynthotic":
+        surprise = 0
+    else:
+        surprise = surprise_logsum_clust_bin(
+            poss_links,
+            int_links,
+            poss_int_links,
+            obs_links)
 
     return surprise, mem_intr_link
+
+
+def binary_surp_gauss_approx(V, V0, L, l0):
+    pi = V0 / V
+    P = ncdf(-(l0 - 1 - L * pi) / (np.sqrt(L * pi * (1 - pi))))
+    return P
 
 
 @jit(nopython=True)
@@ -250,7 +276,7 @@ def surprise_logsum_clust_bin(F, p, M, m):
     :return: [description]
     :rtype: [type]
     """
-    stop = False
+    # stop = False
     min_p = min(M, m)
 
     logP = loghyperprobability(F, p, M, m)
@@ -346,6 +372,7 @@ def calculate_surprise_logsum_clust_weigh_new(
         mem_intr_link,
         clust_labels,
         args,
+        approx,
         is_directed):
     """Calculates the logarithm of the surprise given the current partitions
      for a weighted network. New faster implementation.
@@ -360,6 +387,8 @@ def calculate_surprise_logsum_clust_weigh_new(
     :type clust_labels:
     :param args:
     :type args:
+    :param approx:
+    :type approx:
     :param is_directed: True if the graph is directed.
     :type is_directed: bool
     :return: Log-surprise.
@@ -412,13 +441,34 @@ def calculate_surprise_logsum_clust_weigh_new(
         # extracluster links
         inter_links = poss_links - poss_intr_links
 
-    surprise = surprise_logsum_clust_weigh(
-        poss_intr_links,
-        intr_weights,
-        inter_links,
-        tot_weights,
-        poss_links)
+    if approx == "gaussian":
+        surprise = weighted_suprise_approx(
+            poss_links,
+            tot_weights,
+            intr_weights,
+            poss_intr_links)
+        if surprise > 0:
+            surprise = np.float64(-log10(surprise))
+        else:
+            surprise = 0
+    elif approx == "asynthotic":
+        surprise = 0
+    else:
+        surprise = surprise_logsum_clust_weigh(
+            poss_intr_links,
+            intr_weights,
+            inter_links,
+            tot_weights,
+            poss_links)
     return surprise, mem_intr_link
+
+
+def weighted_suprise_approx(V, W, w_o, V_o):
+    """Gaussian approximation of surprise.
+    """
+    rho = W / V
+    aux = ncdf(-(w_o - 1 - V_o * rho) / (np.sqrt(V_o * rho * (1 + rho))))
+    return aux
 
 
 @jit(nopython=True)
@@ -438,7 +488,7 @@ def surprise_logsum_clust_weigh(Vi, w, Ve, W, V):
     :return: [description]
     :rtype: [type]
     """
-    stop = False
+    # stop = False
 
     logP = lognegativehyperprobability(Vi, w, Ve, W, V)
     for w_loop in range(w, W):
@@ -578,7 +628,7 @@ def calculate_surprise_logsum_clust_enhanced(
         n = adjacency_matrix.shape[0]
         V = n * (n - 1)
         # extracluster links
-        inter_links = V - V_o
+        # inter_links = V - V_o
     else:
         # intracluster weights
         l_o, w_o = intracluster_links_enh(adjacency_matrix,
@@ -596,7 +646,7 @@ def calculate_surprise_logsum_clust_enhanced(
         n = adjacency_matrix.shape[0]
         V = (n * (n - 1)) / 2
         # extracluster links
-        inter_links = V - V_o
+        # inter_links = V - V_o
 
     # print("V_0", V_o, "l_0", l_o, "w_0", w_o, "V", V, "L", L, "W", W)
 
@@ -610,6 +660,7 @@ def calculate_surprise_logsum_clust_enhanced_new(
         mem_intr_link,
         clust_labels,
         args,
+        approx,
         is_directed):
     """Calculates, for a weighted network, the logarithm of the enhanced
      surprise given the current partitioning.
@@ -618,6 +669,14 @@ def calculate_surprise_logsum_clust_enhanced_new(
     :type adjacency_matrix: numpy.ndarray
     :param cluster_assignment: Nodes memberships.
     :type cluster_assignment: numpy.ndarray
+    :param mem_intr_link:
+    :type mem_intr_link:
+    :param clust_labels:
+    :type clust_labels:
+    :param args:
+    :type args:
+    :param approx:
+    :type approx:
     :param is_directed: True if the graph is directed.
     :type is_directed: bool
     :return: Log-surprise.
@@ -662,8 +721,8 @@ def calculate_surprise_logsum_clust_enhanced_new(
                 mem_intr_link[0][node_label] = nr_links
                 mem_intr_link[1][node_label] = w_int
 
-        l_o = int(mem_intr_link[0].sum()/2)
-        w_o = int(mem_intr_link[1].sum()/2)
+        l_o = int(mem_intr_link[0].sum() / 2)
+        w_o = int(mem_intr_link[1].sum() / 2)
 
         # intracluster possible links
         V_o = int(calculate_possible_intracluster_links_new(
@@ -686,8 +745,8 @@ def calculate_surprise_logsum_clust_enhanced_new(
 
 @jit(nopython=True)
 def surprise_logsum_clust_enh(V_o, l_o, w_o, V, L, W):
-    stop = False
-    stop1 = False
+    # stop = False
+    # stop1 = False
     min_l_loop = min(L, V_o)
 
     logP = logenhancedhypergeometric(V_o, l_o, w_o, V, L, W)
@@ -711,8 +770,9 @@ def surprise_logsum_clust_enh(V_o, l_o, w_o, V, L, W):
 
 @jit(nopython=True)
 def logenhancedhypergeometric(V_o, l_o, w_o, V, L, W):
-    aux1 = (ax.logc(V_o, l_o) + ax.logc(V - V_o, L - l_o)) - ax.logc(V , L)
-    aux2 = (ax.logc(w_o - 1, w_o - l_o) + ax.logc(W - w_o - 1, (W - L) - (w_o - l_o))) - ax.logc(W - 1, W - L)
+    aux1 = (ax.logc(V_o, l_o) + ax.logc(V - V_o, L - l_o)) - ax.logc(V, L)
+    aux2 = (ax.logc(w_o - 1, w_o - l_o) + ax.logc(W - w_o - 1, (W - L) - (
+                w_o - l_o))) - ax.logc(W - 1, W - L)
     return aux1 + aux2
 
 
@@ -722,9 +782,11 @@ def calculate_surprise_logsum_clust_weigh_continuos(
         mem_intr_link,
         clust_labels,
         args,
+        approx,
         is_directed):
     """Calculates the logarithm of the continuos surprise given the current
      partitions for a weighted network. New faster implementation.
+
 
     :param adjacency_matrix: Weighted adjacency matrix.
     :type adjacency_matrix: numpy.ndarray
@@ -736,6 +798,8 @@ def calculate_surprise_logsum_clust_weigh_continuos(
     :type clust_labels:
     :param args:
     :type args:
+    :param approx:
+    :type approx:
     :param is_directed: True if the graph is directed.
     :type is_directed: bool
     :return: Log-surprise.
@@ -763,7 +827,7 @@ def calculate_surprise_logsum_clust_weigh_continuos(
         # Possible links
         poss_links = args[2]
         # extracluster links
-        inter_links = poss_links - poss_intr_links
+        # inter_links = poss_links - poss_intr_links
     else:
         # intracluster weights
         if len(clust_labels):
@@ -786,24 +850,39 @@ def calculate_surprise_logsum_clust_weigh_continuos(
         # Possible links
         poss_links = args[2] / 2
         # extracluster links
-        inter_links = poss_links - poss_intr_links
+        # inter_links = poss_links - poss_intr_links
 
-    surprise = continuous_surprise_clust(
-        poss_links,
-        tot_weights,
-        p,
-        poss_intr_links)
-
-    if surprise:
-        return -np.log10(surprise), mem_intr_link
+    if approx == "gaussian":
+        surprise = weighted_suprise_approx(
+            poss_links,
+            tot_weights,
+            intr_weights,
+            poss_intr_links)
+        if surprise > 0:
+            surprise = np.float64(-log10(surprise))
+        else:
+            surprise = 0
+    elif approx == "asynthotic":
+        surprise = 0
     else:
-        return surprise, mem_intr_link
+        surprise = continuous_surprise_clust(
+            poss_links,
+            tot_weights,
+            intr_weights,
+            poss_intr_links)
+
+        if surprise > 0:
+            surprise = np.float64(-log10(surprise))
+        else:
+            surprise = 0
+
+    return surprise, mem_intr_link
 
 
 def continuous_surprise_clust(V, W, w_o, V_o):
-    aux_surp = integrate.quad(integrand_clust, w_o, W,
-                              args=(V, W, V_o), epsabs=1e-05, epsrel=1e-05)
-    return aux_surp[0]
+    f = lambda x: integrand_clust(x, V, W, V_o)
+    aux_surp = quad(f, [w_o, W], method="gauss-legendre")
+    return aux_surp
 
 
 def integrand_clust(w_o, V, W, V_o):
@@ -856,8 +935,8 @@ def flipping_function_comdet_agl_new(
         mem_intr_link,
         args,
         surprise,
+        approx,
         is_directed):
-
     list_neigh = ax.compute_neighbours(adj)
 
     for node, node_label in zip(np.arange(membership.shape[0]), membership):
@@ -873,6 +952,7 @@ def flipping_function_comdet_agl_new(
                     mem_intr_link=mem_intr_link.copy(),
                     clust_labels=np.array([node_label, new_clust]),
                     args=args,
+                    approx=approx,
                     is_directed=is_directed)
                 if temp_surprise > surprise:
                     membership = aux_membership.copy()
@@ -889,12 +969,12 @@ def flipping_function_comdet_div_new(
         mem_intr_link,
         args,
         surprise,
+        approx,
         is_directed):
-
     list_neigh = ax.compute_neighbours(adj)
 
     for node, node_label in zip(np.arange(membership.shape[0]), membership):
-        if len(np.where(membership==node_label)[0])==1:
+        if len(np.where(membership == node_label)[0]) == 1:
             continue
         for node2 in list_neigh[node]:
             new_clust = membership[node2]
@@ -908,6 +988,7 @@ def flipping_function_comdet_div_new(
                     mem_intr_link=mem_intr_link.copy(),
                     clust_labels=np.array([node_label, new_clust]),
                     args=args,
+                    approx=approx,
                     is_directed=is_directed)
                 if temp_surprise > surprise:
                     membership = aux_membership.copy()
