@@ -172,12 +172,13 @@ class UndirectedGraph:
 
         self._set_solved_problem(sol)
 
-    def run_discrete_cp_detection(self,
-                         initial_guess="ranked",
-                         weighted=None,
-                         num_sim=2,
-                         sorting_method="default",
-                         print_output=False):
+    def run_discrete_cp_detection(
+            self,
+            initial_guess="ranked",
+            weighted=None,
+            num_sim=2,
+            sorting_method="default",
+            print_output=False):
 
         self._initialize_problem_cp(
             initial_guess=initial_guess,
@@ -220,8 +221,8 @@ class UndirectedGraph:
                 self.method = "continuous"
             else:
                 self.method = "weighted"
-            # TODO: Mettere hasattr invece di questo try except
-            try:
+
+            if hasattr(self, "adjacency_weighted"):
                 self.aux_adj = self.adjacency_weighted
                 cond1 = (self.method == "enhanced" or
                          self.method == "weighted")
@@ -231,7 +232,7 @@ class UndirectedGraph:
                     raise ValueError("The selected method works for discrete "
                                      "weights, but the initialised graph has "
                                      "continuous weights.")
-            except Exception:
+            else:
                 raise TypeError(
                     "You choose weighted core peryphery detection but the"
                     " graph you initialised is binary.")
@@ -270,10 +271,11 @@ class UndirectedGraph:
                 x,
                 y,
                 False),
-            "continuous": lambda x, y: cp.calculate_surprise_logsum_cp_continuous(
-                x,
-                y,
-                False),
+            "continuous": lambda x,
+                                 y: cp.calculate_surprise_logsum_cp_continuous(
+                                     x,
+                                     y,
+                                     False),
         }
 
         try:
@@ -295,7 +297,7 @@ class UndirectedGraph:
                 np.random.shuffle(self.init_guess[:aux_n])
             elif initial_guess == "ranked":
                 self.init_guess = np.ones(self.n_nodes, dtype=np.int32)
-                aux_n = int(np.ceil((5*self.n_nodes)/100))
+                aux_n = int(np.ceil((5 * self.n_nodes) / 100))
                 if self.is_weighted:
                     self.init_guess[
                         self.strength_sequence.argsort()[-aux_n:]] = 0
@@ -331,6 +333,7 @@ class UndirectedGraph:
     def run_continuous_community_detection(self,
                                            method="aglomerative",
                                            initial_guess="random",
+                                           approx=None,
                                            num_sim=2,
                                            num_clusters=None,
                                            prob_mix=0.1,
@@ -356,6 +359,7 @@ class UndirectedGraph:
                 correct_partition_labeling=self.partition_labeler,
                 prob_mix=prob_mix,
                 flipping_function=cd.flipping_function_comdet_agl_new,
+                approx=approx,
                 is_directed=False,
                 print_output=print_output)
         elif method == "divisive":
@@ -367,6 +371,7 @@ class UndirectedGraph:
                 calculate_surprise=self.surprise_function,
                 correct_partition_labeling=self.partition_labeler,
                 flipping_function=cd.flipping_function_comdet_div_new,
+                approx=approx,
                 is_directed=False,
                 print_output=print_output)
         else:
@@ -377,6 +382,7 @@ class UndirectedGraph:
     def run_enhanced_community_detection(self,
                                          method="aglomerative",
                                          initial_guess="random",
+                                         approx=None,
                                          num_sim=2,
                                          num_clusters=None,
                                          prob_mix=0.1,
@@ -403,6 +409,7 @@ class UndirectedGraph:
                 correct_partition_labeling=self.partition_labeler,
                 prob_mix=prob_mix,
                 flipping_function=cd.flipping_function_comdet_agl_new,
+                approx=approx,
                 is_directed=False,
                 print_output=print_output)
         elif method == "divisive":
@@ -414,6 +421,7 @@ class UndirectedGraph:
                 calculate_surprise=self.surprise_function,
                 correct_partition_labeling=self.partition_labeler,
                 flipping_function=cd.flipping_function_comdet_div_new,
+                approx=approx,
                 is_directed=False,
                 print_output=print_output)
         else:
@@ -425,6 +433,7 @@ class UndirectedGraph:
                                         method="aglomerative",
                                         initial_guess="random",
                                         weighted=None,
+                                        approx=None,
                                         num_sim=2,
                                         num_clusters=None,
                                         prob_mix=0.1,
@@ -450,6 +459,7 @@ class UndirectedGraph:
                 correct_partition_labeling=self.partition_labeler,
                 prob_mix=prob_mix,
                 flipping_function=cd.flipping_function_comdet_agl_new,
+                approx=approx,
                 is_directed=False,
                 print_output=print_output)
         elif method == "divisive":
@@ -461,6 +471,7 @@ class UndirectedGraph:
                 calculate_surprise=self.surprise_function,
                 correct_partition_labeling=self.partition_labeler,
                 flipping_function=cd.flipping_function_comdet_div_new,
+                approx=approx,
                 is_directed=False,
                 print_output=print_output)
         else:
@@ -492,8 +503,8 @@ class UndirectedGraph:
                 self.method = "continuous"
             else:
                 self.method = "weighted"
-            # TODO: Mettere hasattr invece di questo try except
-            try:
+
+            if hasattr(self, "adjacency_weighted"):
                 self.aux_adj = self.adjacency_weighted
                 cond1 = (self.method == "enhanced" or
                          self.method == "weighted")
@@ -503,7 +514,7 @@ class UndirectedGraph:
                     raise ValueError("The selected method works for discrete "
                                      "weights, but the initialised graph has "
                                      "continuous weights.")
-            except Exception:
+            else:
                 raise TypeError(
                     "You choose weighted core peryphery detection but the"
                     " graph you initialised is binary.")

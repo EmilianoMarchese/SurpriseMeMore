@@ -238,8 +238,8 @@ class DirectedGraph:
                 self.method = "continuous"
             else:
                 self.method = "weighted"
-            # TODO: Mettere hasattr invece di questo try except
-            try:
+
+            if hasattr(self, "adjacency_weighted"):
                 self.aux_adj = self.adjacency_weighted
                 cond1 = (self.method == "enhanced" or
                          self.method == "weighted")
@@ -249,7 +249,7 @@ class DirectedGraph:
                     raise ValueError("The selected method works for discrete "
                                      "weights, but the initialised graph has "
                                      "continuous weights.")
-            except Exception:
+            else:
                 raise TypeError(
                     "You choose weighted core peryphery detection but the"
                     " graph you initialised is binary.")
@@ -347,6 +347,7 @@ class DirectedGraph:
     def run_continuous_community_detection(self,
                                            method="aglomerative",
                                            initial_guess="random",
+                                           approx=None,
                                            num_sim=2,
                                            num_clusters=None,
                                            prob_mix=0.1,
@@ -372,6 +373,7 @@ class DirectedGraph:
                 correct_partition_labeling=self.partition_labeler,
                 prob_mix=prob_mix,
                 flipping_function=cd.flipping_function_comdet_agl_new,
+                approx=approx,
                 is_directed=True,
                 print_output=print_output)
         elif method == "divisive":
@@ -383,6 +385,7 @@ class DirectedGraph:
                 calculate_surprise=self.surprise_function,
                 correct_partition_labeling=self.partition_labeler,
                 flipping_function=cd.flipping_function_comdet_div_new,
+                approx=approx,
                 is_directed=True,
                 print_output=print_output)
         else:
@@ -393,6 +396,7 @@ class DirectedGraph:
     def run_enhanced_community_detection(self,
                                          method="aglomerative",
                                          initial_guess="random",
+                                         approx=None,
                                          num_sim=2,
                                          num_clusters=None,
                                          prob_mix=0.1,
@@ -419,6 +423,7 @@ class DirectedGraph:
                 correct_partition_labeling=self.partition_labeler,
                 prob_mix=prob_mix,
                 flipping_function=cd.flipping_function_comdet_agl_new,
+                approx=approx,
                 is_directed=True,
                 print_output=print_output)
         elif method == "divisive":
@@ -430,6 +435,7 @@ class DirectedGraph:
                 calculate_surprise=self.surprise_function,
                 correct_partition_labeling=self.partition_labeler,
                 flipping_function=cd.flipping_function_comdet_div_new,
+                approx=approx,
                 is_directed=True,
                 print_output=print_output)
         else:
@@ -441,6 +447,7 @@ class DirectedGraph:
                                         method="aglomerative",
                                         initial_guess=None,
                                         weighted=None,
+                                        approx=None,
                                         num_sim=None,
                                         num_clusters=2,
                                         prob_mix=0.1,
@@ -466,6 +473,7 @@ class DirectedGraph:
                 correct_partition_labeling=self.partition_labeler,
                 prob_mix=prob_mix,
                 flipping_function=cd.flipping_function_comdet_agl_new,
+                approx=approx,
                 is_directed=True,
                 print_output=print_output)
         elif method == "divisive":
@@ -477,6 +485,7 @@ class DirectedGraph:
                 calculate_surprise=self.surprise_function,
                 correct_partition_labeling=self.partition_labeler,
                 flipping_function=cd.flipping_function_comdet_div_new,
+                approx=approx,
                 is_directed=True,
                 print_output=print_output)
         else:
@@ -508,8 +517,8 @@ class DirectedGraph:
                 self.method = "continuous"
             else:
                 self.method = "weighted"
-            # TODO: Mettere hasattr invece di questo try except
-            try:
+
+            if hasattr(self, "adjacency_weighted"):
                 self.aux_adj = self.adjacency_weighted
                 cond1 = (self.method == "enhanced" or
                          self.method == "weighted")
@@ -519,9 +528,9 @@ class DirectedGraph:
                     raise ValueError("The selected method works for discrete "
                                      "weights, but the initialised graph has "
                                      "continuous weights.")
-            except Exception:
+            else:
                 raise TypeError(
-                    "You choose weighted core peryphery detection but the"
+                    "You choose weighted community detection but the"
                     " graph you initialised is binary.")
         else:
             self.aux_adj = self.adjacency
