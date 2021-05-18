@@ -109,6 +109,7 @@ def solver_com_det_aglom(
         correct_partition_labeling,
         prob_mix,
         flipping_function,
+        approx,
         is_directed,
         print_output=False):
     """Community detection solver. It carries out the research of the optimal
@@ -130,6 +131,8 @@ def solver_com_det_aglom(
     :type prob_mix: [type]
     :param flipping_function:
     :type flipping_function:
+    :param approx:
+    :type approx:
     :param is_directed:
     :type is_directed:
     :param print_output: [description], defaults to False
@@ -164,6 +167,7 @@ def solver_com_det_aglom(
         mem_intr_link,
         np.array([]),
         args,
+        approx,
         is_directed)
 
     contatore_break = 0
@@ -189,6 +193,7 @@ def solver_com_det_aglom(
                         mem_intr_link.copy(),
                         np.array([clus_u, clus_v]),
                         args,
+                        approx,
                         is_directed)
                     # print(cluster_assignement_temp, cluster_assignment)
                     # print("prob_1", u, v, temp_surprise, surprise)
@@ -201,6 +206,7 @@ def solver_com_det_aglom(
                         mem_intr_link.copy(),
                         np.array([clus_u, clus_v]),
                         args,
+                        approx,
                         is_directed)
                     # print(cluster_assignement_temp, cluster_assignment)
                     # print("prob_2", u, v, temp_surprise, surprise)
@@ -215,6 +221,7 @@ def solver_com_det_aglom(
                         mem_intr_link.copy(),
                         np.array([clus_u, clus_v]),
                         args,
+                        approx,
                         is_directed)
                     # print(cluster_assignement_temp, cluster_assignment)
                     # print("mixing", u, v, temp_surprise, surprise)
@@ -242,6 +249,7 @@ def solver_com_det_aglom(
         mem_intr_link=mem_intr_link.copy(),
         args=args,
         surprise=surprise,
+        approx=approx,
         is_directed=is_directed)
 
     cluster_assignement_proper = correct_partition_labeling(
@@ -257,6 +265,7 @@ def solver_com_det_divis(
         calculate_surprise,
         correct_partition_labeling,
         flipping_function,
+        approx,
         is_directed,
         print_output=False):
     """Community detection solver. It carries out the research of the optimal
@@ -276,6 +285,8 @@ def solver_com_det_divis(
     :type correct_partition_labeling: [type]
     :param flipping_function:
     :type flipping_function:
+    :param approx:
+    :type approx:
     :param is_directed:
     :type is_directed:
     :param print_output: [description], defaults to False
@@ -306,6 +317,7 @@ def solver_com_det_divis(
         mem_intr_link,
         np.array([]),
         args,
+        approx,
         is_directed)
 
     contatore_break = 0
@@ -332,6 +344,7 @@ def solver_com_det_divis(
                     mem_intr_link.copy(),
                     np.array([clus_u, clus_v]),
                     args,
+                    approx,
                     is_directed)
 
                 aux_n_clus = np.unique(cluster_assignment_temp1).shape[0]
@@ -346,6 +359,7 @@ def solver_com_det_divis(
                     mem_intr_link.copy(),
                     np.array([clus_u, clus_v]),
                     args,
+                    approx,
                     is_directed)
 
                 aux_n_clus = np.unique(cluster_assignment_temp2).shape[0]
@@ -368,6 +382,7 @@ def solver_com_det_divis(
                     mem_intr_link.copy(),
                     np.array([clus_u, clus_v]),
                     args,
+                    approx,
                     is_directed)
 
                 aux_n_clus = np.unique(cluster_assignment_temp1).shape[0]
@@ -382,6 +397,7 @@ def solver_com_det_divis(
                     mem_intr_link.copy(),
                     np.array([clus_u, clus_v]),
                     args,
+                    approx,
                     is_directed)
 
                 aux_n_clus = np.unique(cluster_assignment_temp2).shape[0]
@@ -408,6 +424,7 @@ def solver_com_det_divis(
         mem_intr_link=mem_intr_link.copy(),
         args=args,
         surprise=surprise,
+        approx=approx,
         is_directed=is_directed)
 
     cluster_assignement_proper = correct_partition_labeling(
