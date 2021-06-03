@@ -139,8 +139,8 @@ def calculate_surprise_logsum_cp_bin(adjacency_matrix,
     periphery_nodes = np.unique(np.where(cluster_assignment == 1)[0])
 
     if is_directed:
-        n_c = (core_nodes).shape[0]
-        n_x = (periphery_nodes).shape[0]
+        n_c = core_nodes.shape[0]
+        n_x = periphery_nodes.shape[0]
         p_c = n_c * (n_c - 1)
         p_x = n_c * n_x * 2
 
@@ -155,8 +155,8 @@ def calculate_surprise_logsum_cp_bin(adjacency_matrix,
         p = n * (n - 1)
 
     else:
-        n_c = (core_nodes).shape[0]
-        n_x = (periphery_nodes).shape[0]
+        n_c = core_nodes.shape[0]
+        n_x = periphery_nodes.shape[0]
         p_c = (n_c * (n_c - 1)) / (2)
         p_x = n_c * n_x
 
@@ -182,14 +182,16 @@ def surprise_bipartite_logsum_CP_Bin(p, p_c, p_x, l, l_c, l_x):
     stop = False
     first_loop_break = False
 
-    min_l_p = min(l, p_c + p_x)
+    # min_l_p = min(l, p_c + p_x)
 
     logP = logMultiHyperProbability(p, p_c, p_x, l, l_c, l_x)
-    for l_c_loop in range(l_c, min_l_p + 1):
-        for l_x_loop in range(l_x, min_l_p + 1 - l_c_loop):
-            if (l_c_loop == l_c) & (l_x_loop == l_x):
+    for l_c_loop in range(l_c, p_c + 1):
+        for l_x_loop in range(l_x, p_x + 1):
+            if ((l_c_loop == l_c) & (l_x_loop == l_x) or
+                    (l_c_loop + l_x_loop > l)):
                 continue
-            nextLogP = logMultiHyperProbability(p, p_c, p_x, l, l_c_loop,
+            nextLogP = logMultiHyperProbability(p, p_c, p_x,
+                                                l, l_c_loop,
                                                 l_x_loop)
             [logP, stop] = ax.sumLogProbabilities(nextLogP, logP)
 
@@ -273,7 +275,7 @@ def calculate_surprise_logsum_cp_enhanced(adjacency_matrix,
         w_c = int(w_c1 + w_c2)
         L = int(np.sum(adjacency_matrix.astype(bool)))
         W = int(np.sum(adjacency_matrix))
-        #w_p = W - w_o - w_c
+        # w_p = W - w_o - w_c
         n = n_o + n_p
         V = int(n * (n - 1))
 
@@ -298,7 +300,7 @@ def calculate_surprise_logsum_cp_enhanced(adjacency_matrix,
 
         L = int(np.sum(adjacency_matrix.astype(bool)) / 2)
         W = int(np.sum(adjacency_matrix) / 2)
-        #w_p = (W - w_o - w_c) / 2
+        # w_p = (W - w_o - w_c) / 2
         n = n_o + n_p
         V = int(n * (n - 1) / 2)
 
@@ -368,8 +370,12 @@ def surprise_bipartite_logsum_CP_enh(V_o, l_o, V_c, l_c, w_o, w_c, V, L, W):
 @jit(nopython=True)
 def logenhancedmultyhyper(V_o, l_o, V_c, l_c, w_o, w_c, V, L, W):
     """Computes the logarithm of the Negative Multinomial Hypergeometric distribution."""
-    aux1 = (ax.logc(V_o, l_o) + ax.logc(V_c, l_c) + ax.logc(V - (V_o + V_c), L - (l_o + l_c))) - ax.logc(V, L)
-    aux2 = (ax.logc(w_o - 1, l_o - 1) + ax.logc(w_c - 1, l_c - 1) + ax.logc(W - (w_o + w_c) - 1, L - (l_o + l_c) - 1)) - ax.logc(W - 1, W - L)
+    aux1 = (ax.logc(V_o, l_o) + ax.logc(V_c, l_c) + ax.logc(V - (V_o + V_c),
+                                                            L - (
+                                                                        l_o + l_c))) - ax.logc(
+        V, L)
+    aux2 = (ax.logc(w_o - 1, l_o - 1) + ax.logc(w_c - 1, l_c - 1) + ax.logc(
+        W - (w_o + w_c) - 1, L - (l_o + l_c) - 1)) - ax.logc(W - 1, W - L)
     return aux1 + aux2
 
 
@@ -400,9 +406,9 @@ def calculate_surprise_logsum_cp_continuous(adjacency_matrix,
         w_x = compute_sum(adjacency_matrix,
                           core_nodes,
                           periphery_nodes) + compute_sum(
-                                                    adjacency_matrix,
-                                                    periphery_nodes,
-                                                    core_nodes)
+            adjacency_matrix,
+            periphery_nodes,
+            core_nodes)
 
         w = np.sum(adjacency_matrix)
         w_p = w - w_c - w_x
@@ -413,19 +419,19 @@ def calculate_surprise_logsum_cp_continuous(adjacency_matrix,
     else:
         n_c = core_nodes.shape[0]
         n_x = periphery_nodes.shape[0]
-        p_c = n_c * (n_c-1) / 2
+        p_c = n_c * (n_c - 1) / 2
         p_x = n_c * n_x
 
-        w_c = (compute_sum(adjacency_matrix, core_nodes, core_nodes))/2
+        w_c = (compute_sum(adjacency_matrix, core_nodes, core_nodes)) / 2
         w_x = (compute_sum(adjacency_matrix,
                            core_nodes,
                            periphery_nodes) + compute_sum(
-                                                      adjacency_matrix,
-                                                      periphery_nodes,
-                                                      core_nodes))/2
+            adjacency_matrix,
+            periphery_nodes,
+            core_nodes)) / 2
 
-        w = np.sum(adjacency_matrix)/2
-        w_p = (w - w_c - w_x)/2
+        w = np.sum(adjacency_matrix) / 2
+        w_p = (w - w_c - w_x) / 2
         n = n_c + n_x
         p = n * (n - 1) / 2
         p_p = p - p_c - p_x
@@ -439,12 +445,15 @@ def calculate_surprise_logsum_cp_continuous(adjacency_matrix,
 
 
 def continuous_surprise_cp(w_c, w_o, V, W, V_o, V_c):
-    aux_surprise = integrate.dblquad(lambda x, y: integrand_cp(x, y, V, W, V_o, V_c),  w_o, W, lambda x: w_c, lambda x: W-x, epsabs=1e-05, epsrel=1e-05)
+    aux_surprise = integrate.dblquad(
+        lambda x, y: integrand_cp(x, y, V, W, V_o, V_c), w_o, W, lambda x: w_c,
+        lambda x: W - x, epsabs=1e-05, epsrel=1e-05)
     return aux_surprise[0]
 
 
 def integrand_cp(w_c, w_o, V, W, V_o, V_c):
-    aux = W * beta(V, W) / (w_o*beta(V_o, w_o) * w_c * beta(V_c, w_c) * (W-(w_o+w_c)) * beta(V-(V_o+V_c), W-(w_o+w_c)))
+    aux = W * beta(V, W) / (w_o * beta(V_o, w_o) * w_c * beta(V_c, w_c) * (
+                W - (w_o + w_c)) * beta(V - (V_o + V_c), W - (w_o + w_c)))
     return aux
 
 
