@@ -2,7 +2,7 @@ import networkx as nx
 import numpy as np
 import scipy
 from numba import jit
-from scipy.sparse import csr_matrix, coo_matrix
+from scipy.sparse import isspmatrix
 from scipy.special import comb
 
 from . import comdet_functions as cd
@@ -12,7 +12,7 @@ from . import cp_functions as cp
 def compute_neighbours(adj):
     lista_neigh = []
     for ii in np.arange(adj.shape[0]):
-        lista_neigh.append(adj[ii,:].nonzero()[0])
+        lista_neigh.append(adj[ii, :].nonzero()[0])
     return lista_neigh
 
 
@@ -76,7 +76,7 @@ def common_neigh_init_guess_weak(adjacency):
     avg_degree = np.mean(degree)
     argsorted = np.argsort(degree)[::-1]
     for aux_node1 in argsorted:
-        if (degree[aux_node1]>=avg_degree):
+        if degree[aux_node1] >= avg_degree:
             aux_tmp = memberships == aux_node1
             memberships[aux_tmp] = memberships[np.argmax(cn_table[aux_node1])]
     return memberships
@@ -225,13 +225,13 @@ def compute_degree(a, is_directed):
         if type(a) == np.ndarray:
             return np.sum(a > 0, 0), np.sum(a > 0, 1)
         # if the matrix is a scipy sparse matrix
-        elif type(a) in [csr_matrix, coo_matrix]:
+        elif isspmatrix(a):
             return np.sum(a > 0, 0).A1, np.sum(a > 0, 1).A1
     else:
         if type(a) == np.ndarray:
             return np.sum(a > 0, 1)
         # if the matrix is a scipy sparse matrix
-        elif type(a) in [csr_matrix, coo_matrix]:
+        elif isspmatrix(a):
             return np.sum(a > 0, 1).A1
 
 
@@ -250,14 +250,14 @@ def compute_strength(a, is_directed):
         if type(a) == np.ndarray:
             return np.sum(a, 0), np.sum(a, 1)
         # if the matrix is a scipy sparse matrix
-        elif type(a) in [csr_matrix, coo_matrix]:
+        elif isspmatrix(a):
             return np.sum(a, 0).A1, np.sum(a, 1).A1
     else:
         # if the matrix is a numpy array
         if type(a) == np.ndarray:
             return np.sum(a, 1)
         # if the matrix is a scipy sparse matrix
-        elif type(a) in [csr_matrix, coo_matrix]:
+        elif isspmatrix(a):
             return np.sum(a, 1).A1
 
 
@@ -358,24 +358,24 @@ def check_adjacency(adjacency, is_sparse, is_directed):
 
 
 @jit(nopython=True, fastmath=True)
-def sumLogProbabilities(nextLogP, logP):
-    if nextLogP == 0:
+def sumLogProbabilities(nextlogp, logp):
+    if nextlogp == 0:
         stop = True
     else:
         stop = False
-        if nextLogP > logP:
-            common = nextLogP
-            diffExponent = logP - common
+        if nextlogp > logp:
+            common = nextlogp
+            diffexponent = logp - common
         else:
-            common = logP
-            diffExponent = nextLogP - common
+            common = logp
+            diffexponent = nextlogp - common
 
-        logP = common + ((np.log10(1 + 10 ** diffExponent)) / np.log10(10))
+        logp = common + ((np.log10(1 + 10 ** diffexponent)) / np.log10(10))
 
-        if (nextLogP - logP) > -4:
+        if (nextlogp - logp) > -4:
             stop = True
 
-    return logP, stop
+    return logp, stop
 
 
 @jit(nopython=True, fastmath=True)
@@ -583,6 +583,102 @@ def surprise_negative_hypergeometric(Vi, w, Ve, W, V):
     return surprise
 
 
+def evaluate_surprise_cp_bin(adjacency_matrix,
+                             cluster_assignment,
+                             is_directed):
+    """Computes core-periphery binary log-surprise given a certain nodes'
+     partitioning.
+
+    :param adjacency_matrix: Binary adjacency matrix.
+    :type adjacency_matrix: numpy.ndarray
+    :param cluster_assignment: Core periphery assigments.
+    :type cluster_assignment: numpy.ndarray
+    :param is_directed: True if the graph is directed.
+    :type is_directed: bool
+    :return: Log-surprise
+    :rtype: float
+    """
+    core_nodes = np.unique(np.where(cluster_assignment == 0)[0])
+    periphery_nodes = np.unique(np.where(cluster_assignment == 1)[0])
+
+    if is_directed:
+        n_c = core_nodes.shape[0]
+        n_x = periphery_nodes.shape[0]
+        p_c = n_c * (n_c - 1)
+        p_x = n_c * n_x * 2
+
+        l_c = cp.compute_sum(adjacency_matrix, core_nodes, core_nodes)
+        l_x = cp.compute_sum(adjacency_matrix, core_nodes,
+                             periphery_nodes) + cp.compute_sum(
+                                                         adjacency_matrix,
+                                                         periphery_nodes,
+                                                         core_nodes)
+
+        l_t = np.sum(adjacency_matrix)
+        n = n_c + n_x
+        p = n * (n - 1)
+
+    else:
+        n_c = core_nodes.shape[0]
+        n_x = periphery_nodes.shape[0]
+        p_c = (n_c * (n_c - 1)) / 2
+        p_x = n_c * n_x
+
+        l_c = cp.compute_sum(adjacency_matrix, core_nodes, core_nodes) / 2
+        l_x = (cp.compute_sum(adjacency_matrix, core_nodes,
+                              periphery_nodes) + cp.compute_sum(
+                                                          adjacency_matrix,
+                                                          periphery_nodes,
+                                                          core_nodes)) / 2
+
+        l_t = np.sum(adjacency_matrix) / 2
+        n = n_c + n_x
+        p = (n * (n - 1)) / 2
+
+    if (p_c + p_x) < (l_c + l_x):
+        return 0
+
+    surprise = surprise_bipartite_cp_bin(p, p_c, p_x, l_t, l_c, l_x)
+    return surprise
+
+
+@jit(forceobj=True)
+def surprise_bipartite_cp_bin(p, p_c, p_x, l, l_c, l_x):
+    surprise = 0
+    aux_first = 0
+    for l_c_loop in range(l_c, p_c + 1):
+        aux_first_temp = aux_first
+        for l_x_loop in range(l_x, p_x + 1):
+            if l_c_loop + l_x_loop > l:
+                continue
+            aux = multihyperprobability(p, p_c, p_x,
+                                        l, l_c_loop,
+                                        l_x_loop)
+            surprise += aux
+            if surprise == 0:
+                break
+            if aux/surprise < 1e-3:
+                break
+
+        aux_first = surprise
+        if aux_first - aux_first_temp:
+            if ((aux_first - aux_first_temp) / aux_first) < 1e-3:
+                # pass
+                break
+
+    return surprise
+
+
+# @jit(nopython=True)
+def multihyperprobability(p, p_c, p_x, l, l_c, l_x):
+    """Computes the logarithm of the Multinomial Hypergeometric
+     distribution."""
+    logh = comb(p_c, l_c, True) * comb(p_x, l_x) + comb(
+        p - p_c - p_x,
+        l - l_c - l_x) - comb(p, l)
+    return logh
+
+
 def evaluate_surprise_cp_enh(adjacency_matrix,
                              cluster_assignment,
                              is_directed):
@@ -609,14 +705,14 @@ def evaluate_surprise_cp_enh(adjacency_matrix,
 
         l_o, w_o = cp.compute_sum_enh(adjacency_matrix, core_nodes, core_nodes)
         l_c, w_c = cp.compute_sum_enh(adjacency_matrix,
-                                   core_nodes,
-                                   periphery_nodes) + cp.compute_sum_enh(
+                                      core_nodes,
+                                      periphery_nodes) + cp.compute_sum_enh(
             adjacency_matrix,
             periphery_nodes,
             core_nodes)
         L = np.sum(adjacency_matrix.astype(bool))
         W = np.sum(adjacency_matrix)
-        w_p = W - w_o - w_c
+        # w_p = W - w_o - w_c
         n = n_o + n_p
         V = n * (n - 1)
 
@@ -628,11 +724,11 @@ def evaluate_surprise_cp_enh(adjacency_matrix,
 
         l_o, w_o = (cp.compute_sum_enh(adjacency_matrix, core_nodes, core_nodes))
         l_c1, w_c1 = cp.compute_sum_enh(adjacency_matrix,
-                                     core_nodes,
-                                     periphery_nodes)
+                                        core_nodes,
+                                        periphery_nodes)
         l_c2, w_c2 = cp.compute_sum_enh(adjacency_matrix,
-                                     periphery_nodes,
-                                     core_nodes)
+                                        periphery_nodes,
+                                        core_nodes)
 
         l_o = l_o / 2
         w_o = w_o / 2
@@ -641,7 +737,7 @@ def evaluate_surprise_cp_enh(adjacency_matrix,
 
         L = np.sum(adjacency_matrix.astype(bool)) / 2
         W = np.sum(adjacency_matrix) / 2
-        w_p = (W - w_o - w_c) / 2
+        # w_p = (W - w_o - w_c) / 2
         n = n_o + n_p
         V = n * (n - 1) / 2
 
@@ -668,7 +764,8 @@ def surprise_bipartite_cp_enh(V_o, l_o, V_c, l_c, w_o, w_c, V, L, W):
             for w_o_loop in np.arange(w_o, W + 1):
                 aux_third_temp = aux_third
                 for w_c_loop in np.arange(w_c, W + 1 - w_o_loop):
-                    aux = logMultiHyperProbabilityWeightEnh(V_o, l_o_loop,
+                    aux = logmulti_hyperprobability_weightenh(
+                                                            V_o, l_o_loop,
                                                             V_c, l_c_loop,
                                                             w_o_loop, w_c_loop,
                                                             V, L, W)
@@ -679,36 +776,24 @@ def surprise_bipartite_cp_enh(V_o, l_o, V_c, l_c, w_o, w_c, V, L, W):
                     if aux / surprise < 1e-3:
                         break
 
-                aux = logMultiHyperProbabilityWeightEnh(V_o, l_o_loop,
-                                                        V_c, l_c_loop,
-                                                        w_o_loop, w_c_loop,
-                                                        V, L, W)
-                aux_third += aux
-                if (aux_third - aux_third_temp):
+                aux_third = surprise
+                if aux_third - aux_third_temp:
                     if ((aux_third - aux_third_temp) / aux_third) < 1e-3:
                         # pass
                         break
                 else:
                     break
 
-            aux_third = logMultiHyperProbabilityWeightEnh(V_o, l_o_loop,
-                                                          V_c, l_c_loop,
-                                                          w_o_loop, w_c_loop,
-                                                          V, L, W)
-            aux_second += aux_third
-            if (aux_second - aux_second_temp):
+            aux_second = aux_third
+            if aux_second - aux_second_temp:
                 if ((aux_second - aux_second_temp) / aux_second) < 1e-3:
                     # pass
                     break
             else:
                 break
 
-        aux_second = logMultiHyperProbabilityWeightEnh(V_o, l_o_loop,
-                                                       V_c, l_c_loop,
-                                                       w_o_loop, w_c_loop,
-                                                       V, L, W)
-        aux_first += aux_second
-        if (aux_first - aux_first_temp):
+        aux_first = aux_second
+        if aux_first - aux_first_temp:
             if ((aux_first - aux_first_temp) / aux_first) < 1e-4:
                 # pass
                 break
@@ -719,7 +804,7 @@ def surprise_bipartite_cp_enh(V_o, l_o, V_c, l_c, w_o, w_c, V, L, W):
 
 
 @jit(forceobj=True)
-def logMultiHyperProbabilityWeightEnh(V_o, l_o, V_c, l_c, w_o, w_c, V, L, W):
+def logmulti_hyperprobability_weightenh(V_o, l_o, V_c, l_c, w_o, w_c, V, L, W):
     """Computes the of the Negative Multinomial Hypergeometric
      distribution."""
     aux1 = (comb(V_o, l_o, exact=True) * comb(V_c, l_c, exact=True) * comb(
@@ -762,7 +847,7 @@ def evaluate_surprise_community_enh(
         n = adjacency_matrix.shape[0]
         V = n * (n - 1)
         # extracluster links
-        inter_links = V - V_o
+        # inter_links = V - V_o
     else:
         # intracluster weights
         l_o, w_o = cd.intracluster_links_enh(adjacency_matrix,
@@ -780,7 +865,7 @@ def evaluate_surprise_community_enh(
         n = adjacency_matrix.shape[0]
         V = int((n * (n - 1)) / 2)
         # extracluster links
-        inter_links = V - V_o
+        # inter_links = V - V_o
 
     # print("V_0", V_o, "l_0", l_o, "w_0", w_o, "V", V, "L", L, "W", W)
 
@@ -795,9 +880,11 @@ def surprise_clust_enh(V_o, l_o, w_o, V, L, W):
     surprise = 0.0
     aux_first = 0.0
     # print("l_o", l_o, "min l", min_l_loop,"w_0", w_o, "W-L", W)
-    for l_loop in np.arange(l_o, min_l_loop + 1):
+    for l_loop in range(l_o, min_l_loop + 1):
         aux_first_temp = aux_first
-        for w_loop in np.arange(w_o, W + 1):
+        for w_loop in range(w_o - l_loop + l_o, W - L + l_o + 1):
+            if w_loop <= 0:
+                continue
             # print(l_loop,  w_loop)
             aux = logenhancedhypergeometric(V_o, l_loop, w_loop, V, L, W)
 
@@ -809,8 +896,8 @@ def surprise_clust_enh(V_o, l_o, w_o, V, L, W):
                 break
             if aux / surprise <= 1e-3:
                 break
-        aux_first += aux
-        if (aux_first - aux_first_temp):
+        aux_first = surprise
+        if aux_first - aux_first_temp:
             if ((aux_first - aux_first_temp) / aux_first) < 1e-4:
                 # pass
                 break
@@ -822,15 +909,20 @@ def surprise_clust_enh(V_o, l_o, w_o, V, L, W):
 
 @jit(forceobj=True)
 def logenhancedhypergeometric(V_o, l_o, w_o, V, L, W):
-    aux1 = (comb(V_o, l_o, True) * comb(V - V_o, L - l_o, True)) / comb(V , L, True)
-    aux2 = (comb(w_o - 1, w_o - l_o, True) * comb(W - w_o - 1, (W - L) - (w_o - l_o), True)) / comb(W - 1, W - L, True)
+    if l_o < L:
+        aux1 = (comb(V_o, l_o, True) * comb(V - V_o, L - l_o, True)) / comb(V, L, True)
+        aux2 = (comb(w_o - 1, w_o - l_o, True) * comb(W - w_o - 1, (W - L) - (w_o - l_o), True)) / comb(W - 1, W - L, True)
+    else:
+        aux1 = (comb(V_o, l_o, True) / comb(V, L, True))
+        aux2 = comb(w_o - 1, w_o - L, True)
     return aux1 * aux2
 
 
 def evaluate_surprise_cp_continuous(adjacency_matrix,
                                     cluster_assignment,
                                     is_directed):
-    """Computes core-periphery weighted continuous log-surprise given a certain nodes' partitioning.
+    """Computes core-periphery weighted continuous log-surprise given a certain
+     nodes' partitioning.
 
     :param adjacency_matrix: Weighted adjacency matrix.
     :type adjacency_matrix: numpy.ndarray
@@ -860,10 +952,10 @@ def evaluate_surprise_cp_continuous(adjacency_matrix,
                                                     core_nodes)
 
         w = np.sum(adjacency_matrix)
-        w_p = w - w_c - w_x
+        # w_p = w - w_c - w_x
         n = n_c + n_x
         p = n * (n - 1)
-        p_p = p - p_c - p_x
+        # p_p = p - p_c - p_x
 
     else:
         n_c = core_nodes.shape[0]
@@ -881,10 +973,10 @@ def evaluate_surprise_cp_continuous(adjacency_matrix,
                                                     core_nodes))/2
 
         w = np.sum(adjacency_matrix)/2
-        w_p = (w - w_c - w_x)/2
+        # w_p = (w - w_c - w_x)/2
         n = n_c + n_x
         p = n * (n - 1) / 2
-        p_p = p - p_c - p_x
+        # p_p = p - p_c - p_x
 
     surprise = cp.continuous_surprise_cp(w_x, w_c, p, w, p_c, p_x)
     return surprise
@@ -920,7 +1012,7 @@ def evaluate_surprise_com_det_continuous(
         n = adjacency_matrix.shape[0]
         poss_links = n * (n - 1)
         # extracluster links
-        inter_links = poss_links - poss_intr_links
+        # inter_links = poss_links - poss_intr_links
     else:
         # intracluster weights
         w = cd.intracluster_links(adjacency_matrix,
@@ -935,7 +1027,7 @@ def evaluate_surprise_com_det_continuous(
         n = adjacency_matrix.shape[0]
         poss_links = int((n * (n - 1)) / 2)
         # extracluster links
-        inter_links = poss_links - poss_intr_links
+        # inter_links = poss_links - poss_intr_links
 
     surprise = cd.continuous_surprise_clust(
         V=poss_links,
@@ -944,4 +1036,3 @@ def evaluate_surprise_com_det_continuous(
         V_o=poss_intr_links)
 
     return surprise
-
