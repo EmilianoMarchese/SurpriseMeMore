@@ -132,7 +132,7 @@ class TestInitialGuess:
         graph = surp.UndirectedGraph(adjacency=adjacency_und)
 
         num_clusters = 3
-        graph._set_initial_guess_cd(method="divisive",
+        graph._set_initial_guess_cd(method="fixed-clusters",
                                     num_clusters=num_clusters,
                                     initial_guess=None)
 
@@ -142,7 +142,7 @@ class TestInitialGuess:
         graph = surp.DirectedGraph(adjacency=adjacency_dir)
 
         num_clusters = 3
-        graph._set_initial_guess_cd(method="divisive",
+        graph._set_initial_guess_cd(method="fixed-clusters",
                                     num_clusters=num_clusters,
                                     initial_guess=None)
 
@@ -152,7 +152,7 @@ class TestInitialGuess:
         graph = surp.UndirectedGraph(adjacency=adjacency_und)
 
         num_clusters = 3
-        graph._set_initial_guess_cd(method="divisive",
+        graph._set_initial_guess_cd(method="fixed-clusters",
                                     num_clusters=num_clusters,
                                     initial_guess="common-neighbours")
 
@@ -162,7 +162,7 @@ class TestInitialGuess:
         graph = surp.DirectedGraph(adjacency=adjacency_dir)
 
         num_clusters = 3
-        graph._set_initial_guess_cd(method="divisive",
+        graph._set_initial_guess_cd(method="fixed-clusters",
                                     num_clusters=num_clusters,
                                     initial_guess="common-neighbours")
 
@@ -174,7 +174,7 @@ class TestInitialGuess:
         init_guess = np.array([k for k in np.arange(graph.n_nodes - 10)] +
                               [k for k in np.arange(10)])
 
-        graph._set_initial_guess_cd(method="divisive",
+        graph._set_initial_guess_cd(method="fixed-clusters",
                                     num_clusters=2,
                                     initial_guess=init_guess)
 
@@ -186,7 +186,7 @@ class TestInitialGuess:
         init_guess = np.array([k for k in np.arange(graph.n_nodes - 10)] +
                               [k for k in np.arange(10)])
 
-        graph._set_initial_guess_cd(method="divisive",
+        graph._set_initial_guess_cd(method="fixed-clusters",
                                     num_clusters=2,
                                     initial_guess=init_guess)
 

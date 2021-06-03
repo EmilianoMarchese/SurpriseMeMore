@@ -6,5 +6,4 @@ surprisemes==0.1.0
 setuptools==53.0.0
 tqdm==4.60.0
 pytest==6.2.2
-sympy==1.8
 mpmath>=1.2.1

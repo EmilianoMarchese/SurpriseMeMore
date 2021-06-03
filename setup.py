@@ -4,10 +4,10 @@ with open('README.md', "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setup(
-    name="surprisemes",
+    name="surprisememore",
     author="Emiliano Marchese",
     author_email='emilianomarcheserc@gmail.com',
-    packages=["surprisemes"],
+    packages=["surprisememore"],
     package_dir={'': 'src'},
     version="0.1.0",
     description="Surprisemes is a python module providing methods, based on"
@@ -31,7 +31,9 @@ setup(
         "numpy>=1.17",
         "networkx>=2.4",
         "scipy>=1.4",
-        "numba>=0.47"
+        "numba>=0.47",
+        "mpmath>=1.2",
+        "tqdm>=4.5"
                       ],
     extras_require={
         "dev": ["pytest==6.0.1",

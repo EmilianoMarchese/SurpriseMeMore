@@ -376,7 +376,7 @@ class DirectedGraph:
                 approx=approx,
                 is_directed=True,
                 print_output=print_output)
-        elif method == "divisive":
+        elif method == "fixed-clusters":
             sol = solver.solver_com_det_divis(
                 adjacency_matrix=self.aux_adj,
                 cluster_assignment=self.init_guess,
@@ -389,14 +389,13 @@ class DirectedGraph:
                 is_directed=True,
                 print_output=print_output)
         else:
-            raise ValueError("Method can be 'aglomerative' or 'divisive'.")
+            raise ValueError("Method can be 'aglomerative' or 'fixed-clusters'.")
 
         self._set_solved_problem(sol)
 
     def run_enhanced_community_detection(self,
                                          method="aglomerative",
                                          initial_guess="random",
-                                         approx=None,
                                          num_sim=2,
                                          num_clusters=None,
                                          prob_mix=0.1,
@@ -423,10 +422,10 @@ class DirectedGraph:
                 correct_partition_labeling=self.partition_labeler,
                 prob_mix=prob_mix,
                 flipping_function=cd.flipping_function_comdet_agl_new,
-                approx=approx,
+                approx=None,
                 is_directed=True,
                 print_output=print_output)
-        elif method == "divisive":
+        elif method == "fixed-clusters":
             sol = solver.solver_com_det_divis(
                 adjacency_matrix=self.aux_adj,
                 cluster_assignment=self.init_guess,
@@ -435,24 +434,23 @@ class DirectedGraph:
                 calculate_surprise=self.surprise_function,
                 correct_partition_labeling=self.partition_labeler,
                 flipping_function=cd.flipping_function_comdet_div_new,
-                approx=approx,
+                approx=None,
                 is_directed=True,
                 print_output=print_output)
         else:
-            raise ValueError("Method can be 'aglomerative' or 'divisive'.")
+            raise ValueError("Method can be 'aglomerative' or 'fixed-clusters'.")
 
         self._set_solved_problem(sol)
 
-    def run_discrete_comunity_detection(self,
-                                        method="aglomerative",
-                                        initial_guess=None,
-                                        weighted=None,
-                                        approx=None,
-                                        num_sim=None,
-                                        num_clusters=2,
-                                        prob_mix=0.1,
-                                        sorting_method="default",
-                                        print_output=False):
+    def run_discrete_community_detection(self,
+                                         method="aglomerative",
+                                         initial_guess=None,
+                                         weighted=None,
+                                         num_sim=None,
+                                         num_clusters=2,
+                                         prob_mix=0.1,
+                                         sorting_method="default",
+                                         print_output=False):
 
         self._initialize_problem_cd(
             method=method,
@@ -473,10 +471,10 @@ class DirectedGraph:
                 correct_partition_labeling=self.partition_labeler,
                 prob_mix=prob_mix,
                 flipping_function=cd.flipping_function_comdet_agl_new,
-                approx=approx,
+                approx=None,
                 is_directed=True,
                 print_output=print_output)
-        elif method == "divisive":
+        elif method == "fixed-clusters":
             sol = solver.solver_com_det_divis(
                 adjacency_matrix=self.aux_adj,
                 cluster_assignment=self.init_guess,
@@ -485,11 +483,11 @@ class DirectedGraph:
                 calculate_surprise=self.surprise_function,
                 correct_partition_labeling=self.partition_labeler,
                 flipping_function=cd.flipping_function_comdet_div_new,
-                approx=approx,
+                approx=None,
                 is_directed=True,
                 print_output=print_output)
         else:
-            raise ValueError("Method can be 'aglomerative' or 'divisive'.")
+            raise ValueError("Method can be 'aglomerative' or 'fixed-clusters'.")
 
         self._set_solved_problem(sol)
 
@@ -571,8 +569,8 @@ class DirectedGraph:
                               num_clusters,
                               initial_guess):
 
-        if num_clusters is None and method == "divisive":
-            raise ValueError("When 'divisive' is passed as clustering 'method'"
+        if num_clusters is None and method == "fixed-clusters":
+            raise ValueError("When 'fixed-clusters' is passed as clustering 'method'"
                              " the 'num_clusters' argument must be specified.")
 
         if isinstance(initial_guess, str):
@@ -580,7 +578,7 @@ class DirectedGraph:
                 if method == "aglomerative":
                     self.init_guess = np.array(
                         [k for k in np.arange(self.n_nodes, dtype=np.int32)])
-                elif method == "divisive":
+                elif method == "fixed-clusters":
                     self.init_guess = np.random.randint(
                         low=num_clusters,
                         size=self.n_nodes)
@@ -589,7 +587,7 @@ class DirectedGraph:
                 if method == "aglomerative":
                     self.init_guess = ax.common_neigh_init_guess_weak(
                         self.adjacency)
-                elif method == "divisive":
+                elif method == "fixed-clusters":
                     self.init_guess = ax.fixed_clusters_init_guess_cn(
                         adjacency=self.adjacency,
                         n_clust=num_clusters)
@@ -597,7 +595,7 @@ class DirectedGraph:
                 if method == "aglomerative":
                     self.init_guess = ax.common_neigh_init_guess_strong(
                         self.adjacency)
-                elif method == "divisive":
+                elif method == "fixed-clusters":
                     self.init_guess = ax.fixed_clusters_init_guess_cn(
                         adjacency=self.adjacency,
                         n_clust=num_clusters)
@@ -619,11 +617,11 @@ class DirectedGraph:
                 "The length of the initial guess provided is different"
                 " from the network number of nodes.")
 
-        if (method == "divisive" and
+        if (method == "fixed-clusters" and
                 np.unique(self.init_guess).shape[0] != num_clusters):
             raise ValueError("The number of clusters of a custom initial guess"
                              " must coincide with 'num_clusters' when the "
-                             " divisive method is applied.")
+                             " fixed-clusters method is applied.")
 
     def _set_solved_problem(self, sol):
         self.solution = sol[0]
