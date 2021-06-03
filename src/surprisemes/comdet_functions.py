@@ -1,10 +1,8 @@
 from . import auxiliary_function as ax
 
 import numpy as np
-import scipy.integrate as integrate
-from mpmath import mp, ncdf, log10, quad, beta
+from mpmath import mp, ncdf, log10, quad, beta, mpf, sqrt, pi
 from numba import jit
-from sympy import beta
 
 mp.dps = 100
 mp.pretty = True
@@ -233,6 +231,9 @@ def calculate_surprise_logsum_clust_bin_new(
         # Possible links
         poss_links = int(args[2] / 2)
 
+    if int_links == 0:
+        return 0, mem_intr_link
+
     if approx == "gaussian":
         surprise = binary_surp_gauss_approx(poss_links,
                                             poss_int_links,
@@ -242,9 +243,15 @@ def calculate_surprise_logsum_clust_bin_new(
             surprise = np.float64(-log10(surprise))
         else:
             surprise = 0
-
-    elif approx == "asynthotic":
-        surprise = 0
+    elif approx == "asymptotic":
+        surprise = asymptot_surp_cd_bin_sum(l_o=int_links,
+                                            V=poss_links,
+                                            L=obs_links,
+                                            V_o=poss_int_links)
+        if surprise > 0:
+            surprise = np.float64(-log10(surprise))
+        else:
+            surprise = 0
     else:
         surprise = surprise_logsum_clust_bin(
             poss_links,
@@ -253,6 +260,45 @@ def calculate_surprise_logsum_clust_bin_new(
             obs_links)
 
     return surprise, mem_intr_link
+
+
+def asymptot_surp_cd_bin(l_o, V, L, V_o):
+    f = lambda x: integrand_asympt_cd_b(x, V, L, V_o)
+    aux = quad(f, [l_o, L], method="gauss-legendre")
+    return aux
+
+
+def asymptot_surp_cd_bin_sum(l_o, V, L, V_o):
+    f = lambda x: integrand_asympt_cd_b(x, V, L, V_o)
+    aux = 0
+    for l_o_loop in range(l_o, L):
+        aux += f(l_o_loop)
+    return aux
+
+
+def integrand_asympt_cd_b(l_o, V, L, V_o):
+    p = mpf(L / V)
+    p_d = mpf(l_o / V_o)
+    p_c = mpf((L - l_o) / (V - V_o))
+    a = a_l_o(l_o, V, L, V_o, p, p_d, p_c)
+    aux = (a * bernoulli(V, L, p)) / (
+                bernoulli(V_o, l_o, p_d) * bernoulli(V - V_o, L - l_o, p_c))
+    return aux
+
+
+def bernoulli(x, y, z):
+    aux = (mpf(z) ** y) * (mpf(1 - z) ** (x - y))
+    return aux
+
+
+def a_l_o(l_o, V, L, V_o, p, p_d, p_c):
+    aux1 = mpf(V*p*(1-p))**2
+    aux2 = mpf(2) * pi * (mpf(V_o * p_d * (1-p_d))**2) * (mpf((V-V_o) * p_c * (1-p_c))**2)
+    if aux2:
+        aux = sqrt(aux1/aux2)
+    else:
+        aux = 1
+    return aux
 
 
 def binary_surp_gauss_approx(V, V0, L, l0):
@@ -441,6 +487,9 @@ def calculate_surprise_logsum_clust_weigh_new(
         # extracluster links
         inter_links = poss_links - poss_intr_links
 
+    if intr_weights == 0:
+        return 0, mem_intr_link
+
     if approx == "gaussian":
         surprise = weighted_suprise_approx(
             poss_links,
@@ -451,8 +500,15 @@ def calculate_surprise_logsum_clust_weigh_new(
             surprise = np.float64(-log10(surprise))
         else:
             surprise = 0
-    elif approx == "asynthotic":
-        surprise = 0
+    elif approx == "asymptotic":
+        surprise = asymptot_surp_cd_wei_sum(poss_links,
+                                            tot_weights,
+                                            poss_intr_links,
+                                            intr_weights)
+        if surprise > 0:
+            surprise = np.float64(-log10(surprise))
+        else:
+            surprise = 0
     else:
         surprise = surprise_logsum_clust_weigh(
             poss_intr_links,
@@ -461,6 +517,44 @@ def calculate_surprise_logsum_clust_weigh_new(
             tot_weights,
             poss_links)
     return surprise, mem_intr_link
+
+
+def asymptot_surp_cd_wei(V, W, V_o, w_o):
+    f = lambda x: integrand_asympt_cd_w(x, V, W, V_o)
+    aux = quad(f, [w_o, W], method="gauss-legendre")
+    return aux
+
+
+@jit(forceobj=True)
+def asymptot_surp_cd_wei_sum(V, W, V_o, w_o):
+    aux_surp = 0
+    for w_o_loop in range(int(w_o), int(W)):
+        aux = integrand_asympt_cd_w(w_o_loop, V, W, V_o)
+        aux_surp += aux
+        if aux_surp == 0:
+            break
+        if aux / aux_surp < 1e-3:
+            break
+    return aux_surp
+
+
+def integrand_asympt_cd_w(w_o, V, W, V_o):
+    q = mpf(W/(V + W -1))
+    q_d = mpf(w_o/(V_o + w_o - 1))
+    q_c = mpf((W - w_o)/(V - V_o + W - w_o - 1))
+    C = C_w_o(V, W, V_o, w_o, q, q_d, q_c)
+    aux = (C * geometric(V, W, q))/(geometric(V_o, w_o, q_d)*geometric(V-V_o, W-w_o, q_c))
+    return aux
+
+
+def geometric(x, y, z):
+    aux = (mpf(z)**y) * (mpf(1 - z)**x)
+    return aux
+
+
+def C_w_o(V, W, V_o, w_o, q, q_d, q_c):
+    aux = sqrt(mpf(V*q)**2 / (mpf(2)*pi*(mpf(V_o*q_d)**2)*(mpf((V-V_o)*q_c)**2)))
+    return aux
 
 
 def weighted_suprise_approx(V, W, w_o, V_o):
@@ -737,6 +831,9 @@ def calculate_surprise_logsum_clust_enhanced_new(
         # extracluster links
         # inter_links = V - V_o
 
+    if l_o == 0:
+        return 0, mem_intr_link
+
     # print("V_0", V_o, "l_0", l_o, "w_0", w_o, "V", V, "L", L, "W", W)
 
     surprise = surprise_logsum_clust_enh(V_o, l_o, w_o, V, L, W)
@@ -852,6 +949,9 @@ def calculate_surprise_logsum_clust_weigh_continuos(
         # extracluster links
         # inter_links = poss_links - poss_intr_links
 
+    if intr_weights == 0:
+        return 0, mem_intr_link
+
     if approx == "gaussian":
         surprise = weighted_suprise_approx(
             poss_links,
@@ -862,8 +962,16 @@ def calculate_surprise_logsum_clust_weigh_continuos(
             surprise = np.float64(-log10(surprise))
         else:
             surprise = 0
-    elif approx == "asynthotic":
-        surprise = 0
+    elif approx == "asymptotic":
+        surprise = asymptot_surp_cd_wei(
+            poss_links,
+            tot_weights,
+            poss_intr_links,
+            intr_weights)
+        if surprise > 0:
+            surprise = np.float64(-log10(surprise))
+        else:
+            surprise = 0
     else:
         surprise = continuous_surprise_clust(
             poss_links,
