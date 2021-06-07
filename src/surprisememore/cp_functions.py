@@ -4,6 +4,7 @@ from sympy import beta
 import scipy.integrate as integrate
 
 from . import auxiliary_function as ax
+from . import comdet_functions as cd
 
 
 @jit(nopython=True)
@@ -312,67 +313,170 @@ def calculate_surprise_logsum_cp_enhanced(adjacency_matrix,
     return surprise
 
 
-@jit(nopython=True)
 def surprise_bipartite_logsum_CP_enh(V_o, l_o, V_c, l_c, w_o, w_c, V, L, W):
-    stop = False
-    stop1 = False
-    stop2 = False
-    stop3 = False
-    min_l_o = min(L, V_o + V_c)
+    skip = False
 
-    logP = logenhancedmultyhyper(V_o, l_o, V_c, l_c, w_o, w_c, V, L, W)
+    if (l_o > 0) and (l_o < L) and (l_c > 0) and (l_c < L):
+        logP = log_enh_multy_hyper(V_o, l_o, V_c, l_c, w_o, w_c, V, L, W)
+    elif (l_o == 0) and (l_c == L):
+        logP = log_enh_red_univ_hyper(V_c, w_c,
+                                      V, L, W)
+        skip = True
+
+    elif (l_o == L) and (l_c == 0):
+        logP = log_enh_red_univ_hyper(V_o, w_o,
+                                      V, L, W)
+        skip = True
+    elif (l_o == 0) and (l_c > 0) and (l_c < L):
+        logP = cd.logenhancedhypergeometric(V_o=V_c, l_o=l_c,
+                                            w_o=w_c, V=V,
+                                            L=L, W=W)
+
+    elif (l_o > 0) and (l_o < L) and (l_c == 0):
+        logP = cd.logenhancedhypergeometric(V_o=V_o, l_o=l_o,
+                                            w_o=w_o, V=V,
+                                            L=L, W=W)
+    else:
+        logP = log_enh_red_univ_hyper(V - V_o - V_c,
+                                      W - w_o - w_c,
+                                      V, L, W)
+
     logP1 = logP
     logP2 = logP
     logP3 = logP
 
-    for l_o_loop in range(l_o, min_l_o + 1):
-        for l_c_loop in range(l_c, min_l_o + 1 - l_o_loop):
-            for w_o_loop in range(w_o, W + 1):
-                for w_c_loop in range(w_c, W + 1 - w_o_loop):
-                    if (l_o_loop == l_o) & (l_c_loop == l_c) & (
-                            w_o_loop == w_o) & (w_c_loop == w_c):
-                        continue
-                    nextLogP = logenhancedmultyhyper(V_o, l_o_loop,
-                                                     V_c, l_c_loop,
-                                                     w_o_loop, w_c_loop,
-                                                     V, L, W)
-                    [logP, stop] = ax.sumLogProbabilities(nextLogP, logP)
-                    if stop:
-                        break
+    for l_o_loop in range(l_o, V_o + 1):
+        for l_c_loop in range(l_c, V_c + 1):
+            if (l_o_loop + l_c_loop > L) or (l_o_loop + l_c_loop == 0):
+                continue
 
-                nextLogP1 = logenhancedmultyhyper(V_o, l_o_loop,
+            if ((l_o_loop > 0) and (l_o_loop < L) and
+                    (l_c_loop > 0) and (l_c_loop < L)):
+                w_o_loop, w_c_loop, logP, logP1 = case_one(
+                    logP, logP1,
+                    l_o_loop, l_c_loop,
+                    V_o, l_o, V_c,
+                    l_c, w_o, w_c,
+                    V, L, W)
+                nextLogP2 = logenhancedmultyhyper(V_o, l_o_loop,
                                                   V_c, l_c_loop,
                                                   w_o_loop, w_c_loop,
                                                   V, L, W)
-                [logP1, stop1] = ax.sumLogProbabilities(nextLogP1, logP1)
-                if stop1:
+                [logP2, stop2] = ax.sumLogProbabilities(nextLogP2, logP2)
+                if stop2:
                     break
+            elif ((l_o_loop == 0) and (l_c_loop > 0) and
+                  (l_c_loop < L)):
+                w_loop, logP = case_two(logP, l_c_loop, V_c,
+                                        l_c, w_c, V, L, W)
+                logP1 = logP
+                nextLogP2 = cd.logenhancedhypergeometric(V_c, l_c_loop, w_loop,
+                                                      V, L, W)
 
-            nextLogP2 = logenhancedmultyhyper(V_o, l_o_loop,
-                                              V_c, l_c_loop,
-                                              w_o_loop, w_c_loop,
-                                              V, L, W)
-            [logP2, stop2] = ax.sumLogProbabilities(nextLogP2, logP2)
-            if stop2:
+                [logP2, stop2] = ax.sumLogProbabilities(nextLogP2, logP2)
+                if stop2:
+                    break
+            elif ((l_o_loop > 0) and (l_o_loop < L) and
+                  (l_c_loop == 0)):
+
+                continue
+
+        if ((l_o_loop > 0) and (l_o_loop < L) and
+                (l_c_loop > 0) and (l_c_loop < L)):
+
+            nextLogP3 = log_enh_multy_hyper(V_o, l_o_loop,
+                                            V_c, l_c_loop,
+                                            w_o_loop, w_c_loop,
+                                            V, L, W)
+            [logP3, stop3] = ax.sumLogProbabilities(nextLogP3, logP3)
+            if stop3:
+                break
+        elif ((l_o_loop == 0) and (l_c_loop > 0) and
+              (l_c_loop < L)):
+            continue
+        elif ((l_o_loop > 0) and (l_o_loop < L) and
+              (l_c_loop == 0)):
+            w_loop, logP = case_two(logP, l_o_loop, V_o,
+                                    l_o, w_o, V, L, W)
+            logP1 = logP
+            nextLogP3 = cd.logenhancedhypergeometric(V_o, l_o_loop,
+                                                     w_loop, V, L, W)
+
+            [logP3, stop3] = ax.sumLogProbabilities(nextLogP3, logP3)
+            if stop3:
                 break
 
-        nextLogP3 = logenhancedmultyhyper(V_o, l_o_loop,
-                                          V_c, l_c_loop,
-                                          w_o_loop, w_c_loop,
-                                          V, L, W)
-        [logP3, stop3] = ax.sumLogProbabilities(nextLogP3, logP3)
-        if stop3:
-            break
+    if skip:
+        logP3 = logP
 
     return -logP3
 
 
 @jit(nopython=True)
+def case_one(logP, logP1, l_o_loop, l_c_loop, V_o,
+             l_o, V_c, l_c, w_o, w_c, V, L, W):
+    for w_o_loop in range(w_o - l_o_loop + l_o, W - L + l_o + 1):
+        for w_c_loop in range(w_c - l_c_loop + l_c,
+                              W + L + l_c + 1 - w_o_loop):
+            if ((w_o_loop == w_o) & (w_c_loop == w_c) &
+                    (l_o_loop == l_o) & (l_c_loop == l_c)):
+                continue
+
+            nextLogP = log_enh_multy_hyper(V_o, l_o_loop,
+                                           V_c, l_c_loop,
+                                           w_o_loop, w_c_loop,
+                                           V, L, W)
+            [logP, stop] = ax.sumLogProbabilities(nextLogP, logP)
+            if stop:
+                break
+        nextLogP1 = log_enh_multy_hyper(V_o, l_o_loop,
+                                        V_c, l_c_loop,
+                                        w_o_loop, w_c_loop,
+                                        V, L, W)
+        [logP1, stop1] = ax.sumLogProbabilities(nextLogP1, logP1)
+        if stop1:
+            break
+    return w_o_loop, w_c_loop, logP, logP1
+
+
+@jit(nopython=True)
+def case_two(logP, l_loop, V_o,
+             l_o, w_o, V, L, W):
+    for w_loop in range(w_o - l_loop + l_o, W - L + l_o + 1):
+        if (w_loop <= 0) & ((w_loop == w_o) & (l_loop == l_o)):
+            continue
+        nextLogP = cd.logenhancedhypergeometric(V_o, l_loop, w_loop, V, L, W)
+        [logP, stop] = ax.sumLogProbabilities(nextLogP, logP)
+        if stop:
+            break
+    return w_loop, logP
+
+
+@jit(nopython=True)
+def log_enh_multy_hyper(V_o, l_o, V_c, l_c, w_o, w_c, V, L, W):
+    """Computes the logarithm of the Negative Multinomial
+     Hypergeometric distribution."""
+    aux1 = (ax.logc(V_o, l_o) + ax.logc(V_c, l_c) + ax.logc(V - (V_o + V_c),
+                                                            L - (l_o + l_c))) - ax.logc(V, L)
+    aux2 = (ax.logc(w_o - 1, l_o - 1) + ax.logc(w_c - 1, l_c - 1) + ax.logc(
+        W - (w_o + w_c) - 1, L - (l_o + l_c) - 1)) - ax.logc(W - 1, W - L)
+    return aux1 + aux2
+
+
+@jit(nopython=True)
+def log_enh_red_univ_hyper(V_o, w_o, V, L, W):
+    aux1 = ax.logc(V_o, L) - ax.logc(V, L)
+    aux2 = ax.logc(w_o - 1, w_o - L)
+    return aux1 + aux2
+
+
+@jit(nopython=True)
 def logenhancedmultyhyper(V_o, l_o, V_c, l_c, w_o, w_c, V, L, W):
-    """Computes the logarithm of the Negative Multinomial Hypergeometric distribution."""
+    """Computes the logarithm of the Negative Multinomial
+     Hypergeometric distribution."""
     aux1 = (ax.logc(V_o, l_o) + ax.logc(V_c, l_c) + ax.logc(V - (V_o + V_c),
                                                             L - (
-                                                                        l_o + l_c))) - ax.logc(
+                                                                    l_o + l_c))) - ax.logc(
         V, L)
     aux2 = (ax.logc(w_o - 1, l_o - 1) + ax.logc(w_c - 1, l_c - 1) + ax.logc(
         W - (w_o + w_c) - 1, L - (l_o + l_c) - 1)) - ax.logc(W - 1, W - L)
@@ -411,10 +515,10 @@ def calculate_surprise_logsum_cp_continuous(adjacency_matrix,
             core_nodes)
 
         w = np.sum(adjacency_matrix)
-        w_p = w - w_c - w_x
+        # w_p = w - w_c - w_x
         n = n_c + n_x
         p = n * (n - 1)
-        p_p = p - p_c - p_x
+        # p_p = p - p_c - p_x
 
     else:
         n_c = core_nodes.shape[0]
@@ -431,10 +535,10 @@ def calculate_surprise_logsum_cp_continuous(adjacency_matrix,
             core_nodes)) / 2
 
         w = np.sum(adjacency_matrix) / 2
-        w_p = (w - w_c - w_x) / 2
+        # w_p = (w - w_c - w_x) / 2
         n = n_c + n_x
         p = n * (n - 1) / 2
-        p_p = p - p_c - p_x
+        # p_p = p - p_c - p_x
 
     surprise = continuous_surprise_cp(w_x, w_c, p, w, p_c, p_x)
 
@@ -453,7 +557,7 @@ def continuous_surprise_cp(w_c, w_o, V, W, V_o, V_c):
 
 def integrand_cp(w_c, w_o, V, W, V_o, V_c):
     aux = W * beta(V, W) / (w_o * beta(V_o, w_o) * w_c * beta(V_c, w_c) * (
-                W - (w_o + w_c)) * beta(V - (V_o + V_c), W - (w_o + w_c)))
+            W - (w_o + w_c)) * beta(V - (V_o + V_c), W - (w_o + w_c)))
     return aux
 
 

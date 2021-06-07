@@ -850,6 +850,8 @@ def surprise_logsum_clust_enh(V_o, l_o, w_o, V, L, W):
     logP1 = logP
 
     for l_loop in range(l_o, min_l_loop + 1):
+        if l_loop == 0:
+            continue
         for w_loop in range(w_o - l_loop + l_o, W - L + l_o + 1):
             if w_loop <= 0:
                 continue
@@ -869,7 +871,7 @@ def surprise_logsum_clust_enh(V_o, l_o, w_o, V, L, W):
 
 @jit(nopython=True)
 def logenhancedhypergeometric(V_o, l_o, w_o, V, L, W):
-    if l_o<L:
+    if l_o < L:
         aux1 = (ax.logc(V_o, l_o) + ax.logc(V - V_o, L - l_o)) - ax.logc(V, L)
         aux2 = (ax.logc(w_o - 1, w_o - l_o) + ax.logc(W - w_o - 1, (W - L) - (
                     w_o - l_o))) - ax.logc(W - 1, W - L)
