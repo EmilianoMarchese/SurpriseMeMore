@@ -114,38 +114,6 @@ def eigenvector_init_guess(adjacency, is_directed):
     return membership
 
 
-def fixed_clusters_init_guess_cn_old(adjacency, n_clust):
-    """ Generates an intial guess with a fixed number 'n' of clusters.
-    Nodes are organised in clusters based on the number of common neighbors.
-    The starting members of clusters are the 'n' nodes with higher
-    degrees/strengths.
-
-    :param adjacency: Adjacency matrix.
-    :type adjacency: numpy.ndarray
-    :param n_clust: Partitions number.
-    :type n_clust: int
-    :return: Initial guess.
-    :rtype: numpy.ndarray
-    """
-    aux_memb = np.ones(adjacency.shape[0], dtype=np.int32) * n_clust
-    deg = adjacency.sum(axis=1)
-    aux_args_sort = np.argsort(deg)[::-1][0:n_clust]
-    for memb, index in enumerate(aux_args_sort):
-        aux_memb[index] = memb
-
-    common_neigh = compute_cn(adjacency)
-    aux = np.nonzero(aux_memb == n_clust)[0]
-    np.random.shuffle(aux)
-    for node in aux:
-        aux_list = np.nonzero(aux_memb != n_clust)[0]
-        node_index = aux_list[np.argmax(common_neigh[node, aux_list])]
-        if isinstance(node_index, np.ndarray):
-            node_index = np.random.choice(node_index)
-        aux_memb[node] = aux_memb[node_index]
-
-    return aux_memb
-
-
 def fixed_clusters_init_guess_cn(adjacency, n_clust):
     """ Generates an intial guess with a fixed number 'n' of clusters.
     Nodes are organised in clusters based on the number of common neighbors.
@@ -916,70 +884,6 @@ def logenhancedhypergeometric(V_o, l_o, w_o, V, L, W):
         aux1 = (comb(V_o, l_o, True) / comb(V, L, True))
         aux2 = comb(w_o - 1, w_o - L, True)
     return aux1 * aux2
-
-
-def evaluate_surprise_cp_continuous(adjacency_matrix,
-                                    cluster_assignment,
-                                    is_directed):
-    """Computes core-periphery weighted continuous log-surprise given a certain
-     nodes' partitioning.
-
-    :param adjacency_matrix: Weighted adjacency matrix.
-    :type adjacency_matrix: numpy.ndarray
-    :param cluster_assignment: Core periphery assigments.
-    :type cluster_assignment: numpy.ndarray
-    :param is_directed: True if the graph is directed.
-    :type is_directed: bool
-    :return: Log-surprise
-    :rtype: float
-    """
-    core_nodes = np.unique(np.where(cluster_assignment == 0)[0])
-    periphery_nodes = np.unique(np.where(cluster_assignment == 1)[0])
-
-    if is_directed:
-        n_c = core_nodes.shape[0]
-        n_x = periphery_nodes.shape[0]
-        p_c = n_c * (n_c - 1)
-        p_x = n_c * n_x * 2
-
-        w_c = cp.compute_sum(adjacency_matrix, core_nodes, core_nodes)
-        w_x = cp.compute_sum(
-                          adjacency_matrix,
-                          core_nodes,
-                          periphery_nodes) + cp.compute_sum(
-                                                    adjacency_matrix,
-                                                    periphery_nodes,
-                                                    core_nodes)
-
-        w = np.sum(adjacency_matrix)
-        # w_p = w - w_c - w_x
-        n = n_c + n_x
-        p = n * (n - 1)
-        # p_p = p - p_c - p_x
-
-    else:
-        n_c = core_nodes.shape[0]
-        n_x = periphery_nodes.shape[0]
-        p_c = n_c * (n_c-1) / 2
-        p_x = n_c * n_x
-
-        w_c = (cp.compute_sum(adjacency_matrix, core_nodes, core_nodes))/2
-        w_x = (cp.compute_sum(
-                        adjacency_matrix,
-                        core_nodes,
-                        periphery_nodes) + cp.compute_sum(
-                                                    adjacency_matrix,
-                                                    periphery_nodes,
-                                                    core_nodes))/2
-
-        w = np.sum(adjacency_matrix)/2
-        # w_p = (w - w_c - w_x)/2
-        n = n_c + n_x
-        p = n * (n - 1) / 2
-        # p_p = p - p_c - p_x
-
-    surprise = cp.continuous_surprise_cp(w_x, w_c, p, w, p_c, p_x)
-    return surprise
 
 
 def evaluate_surprise_com_det_continuous(

@@ -47,25 +47,6 @@ def calculate_possible_intracluster_links_new(partitions, is_directed):
 
 
 @jit(nopython=True)
-def intracluster_links(adj, partitions):
-    """Computes intracluster links or weights.
-
-    :param adj: Adjacency matrix.
-    :type adj: numpy.ndarray
-    :param partitions: Nodes memberships.
-    :type partitions: numpy.ndarray
-    :return: Number of intra-cluster links/weights.
-    :rtype: float
-    """
-    nr_intr_clust_links = 0
-    clust_labels = np.unique(partitions)
-    for lab in clust_labels:
-        indices = np.where(partitions == lab)[0]
-        nr_intr_clust_links += intracluster_links_aux(adj, indices)
-    return nr_intr_clust_links
-
-
-@jit(nopython=True)
 def intracluster_links_new(adj, clust_labels, partitions):
     """Computes intracluster links or weights. New implementation
 
@@ -102,61 +83,6 @@ def intracluster_links_aux(adj, indices):
         for jj in indices:
             n_links += adj[ii, jj]
     return n_links
-
-
-def calculate_surprise_logsum_clust_bin(adjacency_matrix,
-                                        cluster_assignment,
-                                        is_directed):
-    """Calculates the logarithm of the surprise given the current partitions
-    for a binary network.
-
-    :param adjacency_matrix: Binary adjacency matrix.
-    :type adjacency_matrix: numpy.ndarray
-    :param cluster_assignment: Nodes memberships.
-    :type cluster_assignment: numpy.ndarray
-    :param is_directed: True if the graph is directed.
-    :type is_directed: bool
-    :return: Log-surprise.
-    :rtype: float
-    """
-    if is_directed:
-        # intracluster links
-        p = intracluster_links(
-            adjacency_matrix,
-            cluster_assignment)
-        int_links = p
-        # All the possible intracluster links
-        poss_int_links = calculate_possible_intracluster_links(
-            cluster_assignment,
-            is_directed)
-        # Observed links
-        obs_links = np.sum(adjacency_matrix.astype(bool))
-        # Possible links
-        n = adjacency_matrix.shape[0]
-        poss_links = n * (n - 1)
-    else:
-        # intracluster links
-        p = intracluster_links(
-            adjacency_matrix,
-            cluster_assignment)
-        int_links = p / 2
-        # All the possible intracluster links
-        poss_int_links = calculate_possible_intracluster_links(
-            cluster_assignment,
-            is_directed)
-        # Observed links
-        obs_links = np.sum(adjacency_matrix.astype(bool)) / 2
-        # Possible links
-        n = adjacency_matrix.shape[0]
-        poss_links = (n * (n - 1)) / 2
-
-    surprise = surprise_logsum_clust_bin(
-        poss_links,
-        int_links,
-        poss_int_links,
-        obs_links)
-
-    return surprise
 
 
 def calculate_surprise_logsum_clust_bin_new(
@@ -354,62 +280,6 @@ def loghyperprobability(F, p, M, m):
     """
     logH = ax.logc(M, p) + ax.logc(F - M, m - p) - ax.logc(F, m)
     return logH
-
-
-def calculate_surprise_logsum_clust_weigh(
-        adjacency_matrix,
-        cluster_assignment,
-        is_directed):
-    """Calculates the logarithm of the surprise given the current partitions
-     for a weighted network.
-
-    :param adjacency_matrix: Weighted adjacency matrix.
-    :type adjacency_matrix: numpy.ndarray
-    :param cluster_assignment: Nodes memberships.
-    :type cluster_assignment: numpy.ndarray
-    :param is_directed: True if the graph is directed.
-    :type is_directed: bool
-    :return: Log-surprise.
-    :rtype: float
-    """
-    if is_directed:
-        # intracluster weights
-        w = intracluster_links(adjacency_matrix,
-                               cluster_assignment)
-        # intracluster possible links
-        poss_intr_links = calculate_possible_intracluster_links(
-            cluster_assignment,
-            is_directed)
-        # Total Weight
-        tot_weights = np.sum(adjacency_matrix)
-        # Possible links
-        n = adjacency_matrix.shape[0]
-        poss_links = n * (n - 1)
-        # extracluster links
-        inter_links = poss_links - poss_intr_links
-    else:
-        # intracluster weights
-        w = intracluster_links(adjacency_matrix,
-                               cluster_assignment) / 2
-        # intracluster possible links
-        poss_intr_links = calculate_possible_intracluster_links(
-            cluster_assignment,
-            is_directed)
-        # Total Weight
-        tot_weights = np.sum(adjacency_matrix) / 2
-        # Possible links
-        n = adjacency_matrix.shape[0]
-        poss_links = (n * (n - 1)) / 2
-        # extracluster links
-        inter_links = poss_links - poss_intr_links
-
-    surprise = surprise_logsum_clust_weigh(
-        poss_intr_links,
-        w,
-        inter_links,
-        tot_weights,
-        poss_links)
-    return surprise
 
 
 def calculate_surprise_logsum_clust_weigh_new(
@@ -624,29 +494,6 @@ def lognegativehyperprobability(Vi, w, Ve, W, V):
 
 
 @jit(nopython=True)
-def intracluster_links_enh(adj, partitions):
-    """Computes intracluster links and weights for enhanced community
-     detection method.
-
-    :param adj: Adjacency matrix.
-    :type adj: numpy.array
-    :param partitions: Nodes memberships.
-    :type partitions: numpy.array
-    :return: Number of intra-cluster links/weights.
-    :rtype: float
-    """
-    nr_intr_clust_links = 0
-    intr_weight = 0
-    clust_labels = np.unique(partitions)
-    for lab in clust_labels:
-        indices = np.where(partitions == lab)[0]
-        aux_l, aux_w = intracluster_links_aux_enh(adj, indices)
-        nr_intr_clust_links += aux_l
-        intr_weight += aux_w
-    return nr_intr_clust_links, intr_weight
-
-
-@jit(nopython=True)
 def intracluster_links_enh_new(adj, clust_labels, partitions):
     """Computes intracluster links and weights for enhanced community
      detection method.
@@ -689,63 +536,6 @@ def intracluster_links_aux_enh(adj, indices):
                 weight += adj[ii, jj]
                 n_links += 1
     return n_links, weight
-
-
-def calculate_surprise_logsum_clust_enhanced(
-        adjacency_matrix,
-        cluster_assignment,
-        is_directed):
-    """Calculates, for a weighted network, the logarithm of the enhanced
-     surprise given the current partitioning.
-
-    :param adjacency_matrix: Weighted adjacency matrix.
-    :type adjacency_matrix: numpy.ndarray
-    :param cluster_assignment: Nodes memberships.
-    :type cluster_assignment: numpy.ndarray
-    :param is_directed: True if the graph is directed.
-    :type is_directed: bool
-    :return: Log-surprise.
-    :rtype: float
-    """
-    if is_directed:
-        # intracluster weights
-        l_o, w_o = intracluster_links_enh(adjacency_matrix,
-                                          cluster_assignment)
-        # intracluster possible links
-        V_o = calculate_possible_intracluster_links(
-            cluster_assignment,
-            is_directed)
-        # Total Weight
-        W = np.sum(adjacency_matrix)
-        L = np.sum(adjacency_matrix.astype(bool))
-        # Possible links
-        n = adjacency_matrix.shape[0]
-        V = n * (n - 1)
-        # extracluster links
-        # inter_links = V - V_o
-    else:
-        # intracluster weights
-        l_o, w_o = intracluster_links_enh(adjacency_matrix,
-                                          cluster_assignment)
-        l_o = l_o / 2
-        w_o = w_o / 2
-        # intracluster possible links
-        V_o = calculate_possible_intracluster_links(
-            cluster_assignment,
-            is_directed)
-        # Total Weight
-        W = np.sum(adjacency_matrix) / 2
-        L = np.sum(adjacency_matrix.astype(bool)) / 2
-        # Possible links
-        n = adjacency_matrix.shape[0]
-        V = (n * (n - 1)) / 2
-        # extracluster links
-        # inter_links = V - V_o
-
-    # print("V_0", V_o, "l_0", l_o, "w_0", w_o, "V", V, "L", L, "W", W)
-
-    surprise = surprise_logsum_clust_enh(V_o, l_o, w_o, V, L, W)
-    return surprise
 
 
 def calculate_surprise_logsum_clust_enhanced_new(
@@ -848,6 +638,7 @@ def surprise_logsum_clust_enh(V_o, l_o, w_o, V, L, W):
 
     logP = logenhancedhypergeometric(V_o, l_o, w_o, V, L, W)
     logP1 = logP
+    w_loop = w_o
 
     for l_loop in range(l_o, min_l_loop + 1):
         if l_loop == 0:
@@ -1025,23 +816,6 @@ def labeling_communities(partitions):
         new_partitioning[indices_old] = new_part
 
     return new_partitioning
-
-
-def flipping_function_comdet(comm):
-    """Changes the membership of a randomly selected node.
-
-    :param comm: Nodes memberships.
-    :type comm: numpy.ndarray
-    :return: New nodes memberships.
-    :rtype: numpy.ndarray
-    """
-    labels_set = np.unique(comm)
-    node_index = np.random.randint(0, comm.shape[0])
-    remaining_labels = labels_set[labels_set != comm[node_index]]
-    if remaining_labels.size != 0:
-        new_label = np.random.choice(remaining_labels)
-        comm[node_index] = new_label
-    return comm
 
 
 def flipping_function_comdet_agl_new(

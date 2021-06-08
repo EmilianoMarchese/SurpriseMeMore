@@ -1,7 +1,5 @@
 import numpy as np
 from numba import jit
-from sympy import beta
-import scipy.integrate as integrate
 
 from . import auxiliary_function as ax
 from . import comdet_functions as cd
@@ -344,6 +342,9 @@ def surprise_bipartite_logsum_CP_enh(V_o, l_o, V_c, l_c, w_o, w_c, V, L, W):
     logP1 = logP
     logP2 = logP
     logP3 = logP
+    l_c_loop = l_c
+    w_o_loop = w_o
+    w_c_loop = w_c
 
     for l_o_loop in range(l_o, V_o + 1):
         for l_c_loop in range(l_c, V_c + 1):
@@ -358,7 +359,7 @@ def surprise_bipartite_logsum_CP_enh(V_o, l_o, V_c, l_c, w_o, w_c, V, L, W):
                     V_o, l_o, V_c,
                     l_c, w_o, w_c,
                     V, L, W)
-                nextLogP2 = logenhancedmultyhyper(V_o, l_o_loop,
+                nextLogP2 = log_enh_multy_hyper(V_o, l_o_loop,
                                                   V_c, l_c_loop,
                                                   w_o_loop, w_c_loop,
                                                   V, L, W)
@@ -415,6 +416,8 @@ def surprise_bipartite_logsum_CP_enh(V_o, l_o, V_c, l_c, w_o, w_c, V, L, W):
 @jit(nopython=True)
 def case_one(logP, logP1, l_o_loop, l_c_loop, V_o,
              l_o, V_c, l_c, w_o, w_c, V, L, W):
+    w_c_loop = w_c
+    w_o_loop = w_o
     for w_o_loop in range(w_o - l_o_loop + l_o, W - L + l_o + 1):
         for w_c_loop in range(w_c - l_c_loop + l_c,
                               W + L + l_c + 1 - w_o_loop):
@@ -442,6 +445,7 @@ def case_one(logP, logP1, l_o_loop, l_c_loop, V_o,
 @jit(nopython=True)
 def case_two(logP, l_loop, V_o,
              l_o, w_o, V, L, W):
+    w_loop = w_o
     for w_loop in range(w_o - l_loop + l_o, W - L + l_o + 1):
         if (w_loop <= 0) & ((w_loop == w_o) & (l_loop == l_o)):
             continue
@@ -468,97 +472,6 @@ def log_enh_red_univ_hyper(V_o, w_o, V, L, W):
     aux1 = ax.logc(V_o, L) - ax.logc(V, L)
     aux2 = ax.logc(w_o - 1, w_o - L)
     return aux1 + aux2
-
-
-@jit(nopython=True)
-def logenhancedmultyhyper(V_o, l_o, V_c, l_c, w_o, w_c, V, L, W):
-    """Computes the logarithm of the Negative Multinomial
-     Hypergeometric distribution."""
-    aux1 = (ax.logc(V_o, l_o) + ax.logc(V_c, l_c) + ax.logc(V - (V_o + V_c),
-                                                            L - (
-                                                                    l_o + l_c))) - ax.logc(
-        V, L)
-    aux2 = (ax.logc(w_o - 1, l_o - 1) + ax.logc(w_c - 1, l_c - 1) + ax.logc(
-        W - (w_o + w_c) - 1, L - (l_o + l_c) - 1)) - ax.logc(W - 1, W - L)
-    return aux1 + aux2
-
-
-def calculate_surprise_logsum_cp_continuous(adjacency_matrix,
-                                            cluster_assignment,
-                                            is_directed):
-    """Computes core-periphery weighted continuous log-surprise given a certain nodes' partitioning.
-
-    :param adjacency_matrix: Weighted adjacency matrix.
-    :type adjacency_matrix: numpy.ndarray
-    :param cluster_assignment: Core periphery assigments.
-    :type cluster_assignment: numpy.ndarray
-    :param is_directed: True if the graph is directed.
-    :type is_directed: bool
-    :return: Log-surprise
-    :rtype: float
-    """
-    core_nodes = np.unique(np.where(cluster_assignment == 0)[0])
-    periphery_nodes = np.unique(np.where(cluster_assignment == 1)[0])
-
-    if is_directed:
-        n_c = core_nodes.shape[0]
-        n_x = periphery_nodes.shape[0]
-        p_c = n_c * (n_c - 1)
-        p_x = n_c * n_x * 2
-
-        w_c = compute_sum(adjacency_matrix, core_nodes, core_nodes)
-        w_x = compute_sum(adjacency_matrix,
-                          core_nodes,
-                          periphery_nodes) + compute_sum(
-            adjacency_matrix,
-            periphery_nodes,
-            core_nodes)
-
-        w = np.sum(adjacency_matrix)
-        # w_p = w - w_c - w_x
-        n = n_c + n_x
-        p = n * (n - 1)
-        # p_p = p - p_c - p_x
-
-    else:
-        n_c = core_nodes.shape[0]
-        n_x = periphery_nodes.shape[0]
-        p_c = n_c * (n_c - 1) / 2
-        p_x = n_c * n_x
-
-        w_c = (compute_sum(adjacency_matrix, core_nodes, core_nodes)) / 2
-        w_x = (compute_sum(adjacency_matrix,
-                           core_nodes,
-                           periphery_nodes) + compute_sum(
-            adjacency_matrix,
-            periphery_nodes,
-            core_nodes)) / 2
-
-        w = np.sum(adjacency_matrix) / 2
-        # w_p = (w - w_c - w_x) / 2
-        n = n_c + n_x
-        p = n * (n - 1) / 2
-        # p_p = p - p_c - p_x
-
-    surprise = continuous_surprise_cp(w_x, w_c, p, w, p_c, p_x)
-
-    if surprise:
-        return -np.log10(surprise)
-    else:
-        return surprise
-
-
-def continuous_surprise_cp(w_c, w_o, V, W, V_o, V_c):
-    aux_surprise = integrate.dblquad(
-        lambda x, y: integrand_cp(x, y, V, W, V_o, V_c), w_o, W, lambda x: w_c,
-        lambda x: W - x, epsabs=1e-05, epsrel=1e-05)
-    return aux_surprise[0]
-
-
-def integrand_cp(w_c, w_o, V, W, V_o, V_c):
-    aux = W * beta(V, W) / (w_o * beta(V_o, w_o) * w_c * beta(V_c, w_c) * (
-            W - (w_o + w_c)) * beta(V - (V_o + V_c), W - (w_o + w_c)))
-    return aux
 
 
 def labeling_core_periphery(adjacency_matrix, cluster_assignment):

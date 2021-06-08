@@ -140,31 +140,6 @@ class DirectedGraph:
         self.edgelist = None
         self.is_initialized = False
 
-    def run_continuous_cp_detection(self,
-                                    initial_guess="random",
-                                    num_sim=2,
-                                    sorting_method="default",
-                                    print_output=False):
-
-        self._initialize_problem_cp(
-            initial_guess=initial_guess,
-            enhanced=False,
-            weighted=True,
-            continuous=True,
-            sorting_method=sorting_method)
-
-        sol = solver.solver_cp(
-            adjacency_matrix=self.aux_adj,
-            cluster_assignment=self.init_guess,
-            num_sim=num_sim,
-            sort_edges=self.sorting_function,
-            calculate_surprise=self.surprise_function,
-            correct_partition_labeling=self.partition_labeler,
-            flipping_function=self.flipping_function,
-            print_output=print_output)
-
-        self._set_solved_problem(sol)
-
     def run_enhanced_cp_detection(self,
                                   initial_guess="random",
                                   num_sim=2,
@@ -175,7 +150,6 @@ class DirectedGraph:
             initial_guess=initial_guess,
             enhanced=True,
             weighted=True,
-            continuous=False,
             sorting_method=sorting_method)
 
         sol = solver.solver_cp(
@@ -201,7 +175,6 @@ class DirectedGraph:
             initial_guess=initial_guess,
             enhanced=False,
             weighted=weighted,
-            continuous=False,
             sorting_method=sorting_method)
 
         sol = solver.solver_cp(
@@ -220,7 +193,6 @@ class DirectedGraph:
                                initial_guess,
                                enhanced,
                                weighted,
-                               continuous,
                                sorting_method):
 
         self._set_initial_guess_cp(initial_guess)
@@ -234,18 +206,14 @@ class DirectedGraph:
         elif weighted:
             if enhanced:
                 self.method = "enhanced"
-            elif continuous:
-                self.method = "continuous"
             else:
                 self.method = "weighted"
 
             if hasattr(self, "adjacency_weighted"):
                 self.aux_adj = self.adjacency_weighted
-                cond1 = (self.method == "enhanced" or
-                         self.method == "weighted")
                 cond2 = (self.aux_adj.astype(np.int64).sum() !=
                          self.aux_adj.sum())
-                if cond1 and cond2:
+                if cond2:
                     raise ValueError("The selected method works for discrete "
                                      "weights, but the initialised graph has "
                                      "continuous weights.")
@@ -284,10 +252,6 @@ class DirectedGraph:
                 y,
                 True),
             "enhanced": lambda x, y: cp.calculate_surprise_logsum_cp_enhanced(
-                x,
-                y,
-                True),
-            "continuous": lambda x, y: cp.calculate_surprise_logsum_cp_continuous(
                 x,
                 y,
                 True),
