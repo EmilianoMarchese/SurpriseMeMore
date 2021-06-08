@@ -1,4 +1,4 @@
-Surprisemess
+SurpriseMeMore
 -------------------------------------------------------------------
 
 SurpriseMeMore is a toolbox for detecting mesoscale structure in networks, released as a python3 module. 
@@ -67,50 +67,70 @@ the absence of its wheel in <code>python3.5</code>.
 
 Some Examples
 --------------
-As an example we run community detection on zachary karate club network.
+As an example, we run community detection on zachary karate club network.
 
 ```
     import numpy as np
     import networkx as nx
-    from NEMtropy import UndirectedGraph
+    from surprisememore import UndirectedGraph
 
+    from surprisememore import UndirectedGraph
+    import networkx as nx
+    
     G = nx.karate_club_graph()
     adj_kar = nx.to_numpy_array(G)
     graph = UndirectedGraph(adj_kar)
-
-    graph.solve_tool(model="cm_exp",
-                 method="newton",
-                 initial_guess="random")
+    
+    graph.run_discrete_community_detection(weighted=False,
+                                           num_sim=2)
 ```
-
-Given the UBCM model, we can generate ten random copies of zachary's karate club.
-
-```
-    graph.ensemble_sampler(10, cpu_n=2, output_dir="sample/")
-```
-
-These copies are saved as an edgelist, each edgelist can be converted to an
-adjacency matrix by running the NEMtropy build graph function.
+The algorithm will find the best partition by optimizing surprise score
+function. At the end of the optimization process, the optimal partition is
+saved as an attribute of the graph class.
 
 ```
-    from NEMtropy.network_functions import build_graph_from_edgelist
-
-    edgelist_ens = np.loadtxt("sample/0.txt")
-    ens_adj = build_graph_from_edgelist(edgelist = edgelist_ens,
-                                    is_directed = False,
-                                    is_sparse = False,
-                                    is_weighted = False)
+    # optimal partition
+    graph.solution
+    
+    # Surprise of the optimal partition
+    graph.surprise
+    
+    # Log surprise
+    graph.log_surprise
 ```
 
-These collection of random adjacency matrices can be used as a null model:
-it is enough to compute the expected value of the selected network feature 
-on the ensemble of matrices and to compare it with its original value.
+Similarly, we can run the algorithm detecting bimodular structure. In the case
+of zachary karate club, the code snippet is the following.
 
-To learn more, please read the two ipython notebooks in the examples directory:
-one is a study case on a [directed graph](https://github.com/nicoloval/NEMtropy/blob/master/examples/Directed%20Graphs.ipynb), 
-while the other is on an [undirected graph](https://github.com/nicoloval/NEMtropy/blob/master/examples/Undirected%20Graphs.ipynb).
+```
+    from surprisememore import UndirectedGraph
+    import networkx as nx
+    
+    G = nx.karate_club_graph()
+    adj_kar = nx.to_numpy_array(G)
+    graph = UndirectedGraph(adj_kar)
+    
+    graph.run_discrete_cp_detection(weighted=False, num_sim=2)
+```
 
-You can find complete documentation about NEMtropy library in [docs](https://nemtropy.readthedocs.io/en/master/index.html).
+In the previous example I passed two optional arguments to the function: *weighted*
+and *num_sim*. The argument *weighted* specify which version of surprise you want 
+to use: binary or weighted. If the network is binary, you don't need to pass 
+the argument "weighted", the class detects by itself that the graph is binary 
+and use the proper method for community/bimodular detection. Instead, if the 
+network has weights, the default method is the weighted one. To run binary 
+community/bimodular detection you must specify "weighted"=False.
+
+The arguments *num_sim* specifies the number of time we run over all the edges 
+of the network during the optimization problem. You can find more detail about the
+algorithm in []().
+
+All the implemented algorithms are heuristic, we suggest running them more 
+than once and pick the best solution (the one with higher log_surprise).
+
+To learn more, please read the two ipython notebooks in the examples' directory:
+one is a study case on a [community detection](https://github.com/nicoloval/NEMtropy/blob/master/examples/Directed%20Graphs.ipynb), 
+while the other is on an [bimodular detection](https://github.com/nicoloval/NEMtropy/blob/master/examples/Undirected%20Graphs.ipynb).
 
 Development
 -----------
@@ -128,17 +148,6 @@ To build a development environment run:
     $ source venv/bin/activate 
     $ pip install -e '.[dev]'
 ```
-
-Testing
--------
-If you want to test the package integrity, you can run the following 
-bash command from the tests directory:
-
-```
-    $ bash run_all.sh
-```
-
-__P.S.__ _at the moment there may be some problems with the DECM solver functions_
 
 Credits
 -------
