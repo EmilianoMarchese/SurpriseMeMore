@@ -25,7 +25,6 @@ If you use the module for your scientific research, please consider citing us:
 - [Dependencies](#dependencies)
 - [Some Examples](#some-examples)
 - [Development](#development)
-- [Testing](#testing)
 - [Credits](#credits)
 
 ## Currently Implemented Methods
@@ -102,14 +101,29 @@ saved as an attribute of the graph class.
 Similarly, we can run the algorithm detecting bimodular structure. In the case
 of zachary karate club, the code snippet is the following.
 
+#%% md
+
 ```
     from surprisememore import UndirectedGraph
     import networkx as nx
     
     G = nx.karate_club_graph()
     adj_kar = nx.to_numpy_array(G)
-    graph = UndirectedGraph(adj_kar)
-    
+    graph = UndirectedGraph(adjacency=adj_kar)
+```
+
+Here we initialized our SupriseMeMore **UndirectedGraph** object with the adjacency
+matrix. The available options are adjacency matrix or edgelist.
+
+* If you use adjacency matrix, then you have to pass the matrix as a **numpy.ndarray**;
+
+* If you use edgelist, then the edgelist has to be passed as a **list of tuple**:
+    * [(u, v), (u, t), ...] for binary networks;
+    * [(u, v, w1), (u, t, w2), ...] for weighted networks;
+
+For more details about edgelist format you can see [link](https://networkx.org/documentation/stable/reference/classes/generated/networkx.DiGraph.add_weighted_edges_from.html?highlight=add_weighted_edges_from#networkx.DiGraph.add_weighted_edges_from).
+
+```
     graph.run_discrete_cp_detection(weighted=False, num_sim=2)
 ```
 
@@ -129,8 +143,8 @@ All the implemented algorithms are heuristic, we suggest running them more
 than once and pick the best solution (the one with higher log_surprise).
 
 To learn more, please read the two ipython notebooks in the examples' directory:
-one is a study case on a [community detection](https://github.com/nicoloval/NEMtropy/blob/master/examples/Directed%20Graphs.ipynb), 
-while the other is on an [bimodular detection](https://github.com/nicoloval/NEMtropy/blob/master/examples/Undirected%20Graphs.ipynb).
+one is a study case on a [community detection](https://github.com/nicoloval/NEMtropy/blob/master/examples/Community%20Detection.ipynb), 
+while the other is on an [bimodular detection](https://github.com/nicoloval/NEMtropy/blob/master/examples/Mesoscale%20Structure%20Detection.ipynb).
 
 Development
 -----------

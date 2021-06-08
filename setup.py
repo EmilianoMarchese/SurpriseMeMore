@@ -10,13 +10,14 @@ setup(
     packages=["surprisememore"],
     package_dir={'': 'src'},
     version="0.1.0",
-    description="Surprisemes is a python module providing methods, based on"
-                " the surprise framework, to detect mesoscale structures in"
-                " graphs and multigraphs.",
+    description="SurpriseMeMore is a python module providing methods, based on"
+                " the surprise framework, to detect mesoscale structures"
+                "(e.g. communities, core-periphery, bow-tie) in graphs and "
+                "multigraphs.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     license="MIT",
-    url="",
+    url="https://github.com/EmilianoMarchese/SurpriseMeMore",
     download_url="",
     keywords=['community detection', 'core-periphery detection',
               'graphs', "multi-graphs", "weighted graphs", "surprise"],
@@ -36,14 +37,12 @@ setup(
         "tqdm>=4.5"
                       ],
     extras_require={
-        "dev": ["pytest==6.0.1",
-                "coverage==5.2.1",
-                "pytest-cov==2.10.1",
-                "flake8==3.8.3",
-                "wheel==0.35.1",
-                "check-manifest==0.44",
-                "setuptools==47.1.0",
-                "twine==3.2.0",
-                "tox==3.20.1"],
+        "dev": ["pytest>=6.0.1",
+                "flake8>=3.8.3",
+                "wheel>=0.36.2",
+                "check-manifest>=0.44",
+                "setuptools>=47.1.0",
+                "twine>=3.2.0",
+                "tox>=3.20.1"],
         },
 )
