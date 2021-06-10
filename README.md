@@ -64,21 +64,61 @@ If you use <code>python3.5</code> you may incur in an error, we suggest installi
 It avoids an error during the installation of <code>llvmlite</code> due to 
 the absence of its wheel in <code>python3.5</code>.
 
+Graph Initialization
+--------------------
+
+The basic objects of SurpriseMeMore library are undirected (**UndirectedGraph**)
+and  directed (**DirectedGraph**) graphs. Both graph instances can be initialized
+by adjacency matrix or edgelist. As an example, we initialize zachary karate 
+club as a SurpriseMeMore undirected graph:
+
+```
+    import numpy as np
+    import networkx as nx
+    from surprisememore import UndirectedGraph
+    
+    G = nx.karate_club_graph()
+    adj_kar = nx.to_numpy_array(G)
+    graph = UndirectedGraph(adjacency=adj_kar)
+```
+
+Here we initialized our SupriseMeMore **UndirectedGraph** object with the adjacency
+matrix of zachary karate club. As we said previously, the user can choose betweem 
+adjacency matrix or edgelist, both initializations require proper data type and
+structure:
+
+* If you use adjacency matrix, then you have to pass the matrix as a **numpy.ndarray**;
+
+* If you use edgelist, then the edgelist has to be passed as a **list of tuple**:
+    * [(u, v), (u, t), ...] for binary networks;
+    * [(u, v, w1), (u, t, w2), ...] for weighted networks;
+
+For more details about edgelist format you can see [link](https://networkx.org/documentation/stable/reference/classes/generated/networkx.DiGraph.add_weighted_edges_from.html?highlight=add_weighted_edges_from#networkx.DiGraph.add_weighted_edges_from).
+
+The initialization procedure is exactly the same in the case of directed graphs:
+```
+    from surprisememore import DirectedGraph
+    import numpy as np
+    
+    adj_dir = np.array([0, 1, 0]
+                       [0, 0, 1]
+                       [1, 1, 0])
+    
+    graph = DirectedGraph(adjacency=adj_kar)
+```
+
 Some Examples
 --------------
-As an example, we run community detection on zachary karate club network.
+Let now run community detection on zachary karate club network.
 
 ```
     import numpy as np
     import networkx as nx
     from surprisememore import UndirectedGraph
 
-    from surprisememore import UndirectedGraph
-    import networkx as nx
-    
     G = nx.karate_club_graph()
     adj_kar = nx.to_numpy_array(G)
-    graph = UndirectedGraph(adj_kar)
+    graph = UndirectedGraph(adjacency=adj_kar)
     
     graph.run_discrete_community_detection(weighted=False,
                                            num_sim=2)
@@ -101,8 +141,6 @@ saved as an attribute of the graph class.
 Similarly, we can run the algorithm detecting bimodular structure. In the case
 of zachary karate club, the code snippet is the following.
 
-#%% md
-
 ```
     from surprisememore import UndirectedGraph
     import networkx as nx
@@ -110,30 +148,17 @@ of zachary karate club, the code snippet is the following.
     G = nx.karate_club_graph()
     adj_kar = nx.to_numpy_array(G)
     graph = UndirectedGraph(adjacency=adj_kar)
-```
-
-Here we initialized our SupriseMeMore **UndirectedGraph** object with the adjacency
-matrix. The available options are adjacency matrix or edgelist.
-
-* If you use adjacency matrix, then you have to pass the matrix as a **numpy.ndarray**;
-
-* If you use edgelist, then the edgelist has to be passed as a **list of tuple**:
-    * [(u, v), (u, t), ...] for binary networks;
-    * [(u, v, w1), (u, t, w2), ...] for weighted networks;
-
-For more details about edgelist format you can see [link](https://networkx.org/documentation/stable/reference/classes/generated/networkx.DiGraph.add_weighted_edges_from.html?highlight=add_weighted_edges_from#networkx.DiGraph.add_weighted_edges_from).
-
-```
+    
     graph.run_discrete_cp_detection(weighted=False, num_sim=2)
 ```
 
-In the previous example I passed two optional arguments to the function: *weighted*
+In the previous example, we pass two optional arguments to the function: *weighted*
 and *num_sim*. The argument *weighted* specify which version of surprise you want 
-to use: binary or weighted. If the network is binary, you don't need to pass 
-the argument "weighted", the class detects by itself that the graph is binary 
-and use the proper method for community/bimodular detection. Instead, if the 
-network has weights, the default method is the weighted one. To run binary 
-community/bimodular detection you must specify "weighted"=False.
+to use: binary or weighted. In general, if the network is binary (as zachary),
+you don't need to pass  the argument "weighted", the class detects by itself 
+that the graph is binary and use the proper method for community/bimodular detection.
+Instead, if the  network has weights, the default method is the weighted one.
+To run binary community/bimodular detection you must specify "weighted"=False.
 
 The arguments *num_sim* specifies the number of time we run over all the edges 
 of the network during the optimization problem. You can find more detail about the
