@@ -5,17 +5,17 @@ SurpriseMeMore is a toolbox for detecting mesoscale structure in networks, relea
 
 SurpriseMeMore provides the user with a variety of solvers, based on the _surprise_ framework, for the detection of mesoscale structures ( e.g. communities, core-periphery) in networks.
 
-The models implemented in SurpriseMeMore are presented in a forthcoming [paper](https://arxiv.org/) on arXiv.
+The models implemented in SurpriseMeMore are presented in a forthcoming [paper](https://arxiv.org/abs/2106.05055) on arXiv.
 If you use the module for your scientific research, please consider citing us:
 
 ```
-    @misc{,
-          title={}, 
-          author=Emiliano Marchese and Tiziano Squartini},
-          year={2021},
-          eprint={},
-          archivePrefix={},
-          primaryClass={physics.data-an}
+    @misc{marchese2021detecting,
+      title={Detecting mesoscale structures by surprise}, 
+      author={Emiliano Marchese and Guido Caldarelli and Tiziano Squartini},
+      year={2021},
+      eprint={2106.05055},
+      archivePrefix={arXiv},
+      primaryClass={physics.soc-ph}
     }
 ```
 
@@ -137,7 +137,7 @@ community/bimodular detection you must specify "weighted"=False.
 
 The arguments *num_sim* specifies the number of time we run over all the edges 
 of the network during the optimization problem. You can find more detail about the
-algorithm in []().
+algorithm in [1](https://arxiv.org/abs/2106.05055), [2](https://www.nature.com/articles/srep19250).
 
 All the implemented algorithms are heuristic, we suggest running them more 
 than once and pick the best solution (the one with higher log_surprise).
