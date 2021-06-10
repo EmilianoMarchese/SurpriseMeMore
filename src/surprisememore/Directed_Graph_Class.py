@@ -140,15 +140,40 @@ class DirectedGraph:
         self.edgelist = None
         self.is_initialized = False
 
-    def run_cp_detection(self,
-                         initial_guess="random",
-                         weighted=None,
-                         num_sim=2,
-                         sorting_method="default",
-                         print_output=False):
+    def run_enhanced_cp_detection(self,
+                                  initial_guess="random",
+                                  num_sim=2,
+                                  sorting_method="default",
+                                  print_output=False):
 
         self._initialize_problem_cp(
             initial_guess=initial_guess,
+            enhanced=True,
+            weighted=True,
+            sorting_method=sorting_method)
+
+        sol = solver.solver_cp(
+            adjacency_matrix=self.aux_adj,
+            cluster_assignment=self.init_guess,
+            num_sim=num_sim,
+            sort_edges=self.sorting_function,
+            calculate_surprise=self.surprise_function,
+            correct_partition_labeling=self.partition_labeler,
+            flipping_function=self.flipping_function,
+            print_output=print_output)
+
+        self._set_solved_problem(sol)
+
+    def run_discrete_cp_detection(self,
+                                  initial_guess="random",
+                                  weighted=None,
+                                  num_sim=2,
+                                  sorting_method="default",
+                                  print_output=False):
+
+        self._initialize_problem_cp(
+            initial_guess=initial_guess,
+            enhanced=False,
             weighted=weighted,
             sorting_method=sorting_method)
 
@@ -166,6 +191,7 @@ class DirectedGraph:
 
     def _initialize_problem_cp(self,
                                initial_guess,
+                               enhanced,
                                weighted,
                                sorting_method):
 
@@ -178,10 +204,20 @@ class DirectedGraph:
                 self.aux_adj = self.adjacency
                 self.method = "binary"
         elif weighted:
-            try:
-                self.aux_adj = self.adjacency_weighted
+            if enhanced:
+                self.method = "enhanced"
+            else:
                 self.method = "weighted"
-            except Exception:
+
+            if hasattr(self, "adjacency_weighted"):
+                self.aux_adj = self.adjacency_weighted
+                cond2 = (self.aux_adj.astype(np.int64).sum() !=
+                         self.aux_adj.sum())
+                if cond2:
+                    raise ValueError("The selected method works for discrete "
+                                     "weights, but the initialised graph has "
+                                     "continuous weights.")
+            else:
                 raise TypeError(
                     "You choose weighted core peryphery detection but the"
                     " graph you initialised is binary.")
@@ -215,6 +251,10 @@ class DirectedGraph:
                 x,
                 y,
                 True),
+            "enhanced": lambda x, y: cp.calculate_surprise_logsum_cp_enhanced(
+                x,
+                y,
+                True),
         }
 
         try:
@@ -232,6 +272,11 @@ class DirectedGraph:
             if initial_guess == "random":
                 self.init_guess = np.ones(self.n_nodes, dtype=np.int32)
                 aux_n = int(np.ceil((5 * self.n_nodes) / 100))
+                self.init_guess[:aux_n] = 0
+                np.random.shuffle(self.init_guess[:aux_n])
+            elif initial_guess == "ranked":
+                self.init_guess = np.ones(self.n_nodes, dtype=np.int32)
+                aux_n = int(np.ceil((5 * self.n_nodes) / 100))
                 if self.is_weighted:
                     self.init_guess[
                         self.strength_sequence_out.argsort()[-aux_n:]] = 0
@@ -239,7 +284,7 @@ class DirectedGraph:
                     self.init_guess[
                         self.degree_sequence_out.argsort()[-aux_n:]] = 0
             elif initial_guess == "eigenvector":
-                self.initial_guess = ax.eigenvector_init_guess(self.adjacency,
+                self.init_guess = ax.eigenvector_init_guess(self.adjacency,
                                                                False)
             else:
                 raise ValueError("Valid values of initial guess are 'random', "
@@ -254,7 +299,7 @@ class DirectedGraph:
         if np.unique(self.init_guess).shape[0] != 2:
             raise ValueError("The custom initial_guess passed is not valid."
                              " The initial guess for core-periphery detection"
-                             " must have nodes' membership that are 0 and 1."
+                             " must have nodes' membership that are 0 or 1."
                              " Pay attention that at least one node has to "
                              "belong to the core (0) or the periphery (1).")
 
@@ -263,21 +308,23 @@ class DirectedGraph:
                 "The length of the initial guess provided is different from"
                 " the network number of nodes.")
 
-    def run_comunity_detection(self,
-                               method="aglomerative",
-                               initial_guess=None,
-                               weighted=None,
-                               num_sim=None,
-                               num_clusters=2,
-                               prob_mix=0.1,
-                               sorting_method="default",
-                               print_output=False):
-
+    def run_continuous_community_detection(self,
+                                           method="aglomerative",
+                                           initial_guess="random",
+                                           approx=None,
+                                           num_sim=2,
+                                           num_clusters=None,
+                                           prob_mix=0.1,
+                                           sorting_method="default",
+                                           print_output=False
+                                           ):
         self._initialize_problem_cd(
             method=method,
             num_clusters=num_clusters,
             initial_guess=initial_guess,
-            weighted=weighted,
+            enhanced=False,
+            weighted=True,
+            continuous=True,
             sorting_method=sorting_method)
 
         if method == "aglomerative":
@@ -289,10 +336,11 @@ class DirectedGraph:
                 calculate_surprise=self.surprise_function,
                 correct_partition_labeling=self.partition_labeler,
                 prob_mix=prob_mix,
-                flipping_function=self.flipping_function,
+                flipping_function=cd.flipping_function_comdet_agl_new,
+                approx=approx,
                 is_directed=True,
                 print_output=print_output)
-        elif method == "divisive":
+        elif method == "fixed-clusters":
             sol = solver.solver_com_det_divis(
                 adjacency_matrix=self.aux_adj,
                 cluster_assignment=self.init_guess,
@@ -300,11 +348,110 @@ class DirectedGraph:
                 sort_edges=self.sorting_function,
                 calculate_surprise=self.surprise_function,
                 correct_partition_labeling=self.partition_labeler,
-                flipping_function=self.flipping_function,
+                flipping_function=cd.flipping_function_comdet_div_new,
+                approx=approx,
                 is_directed=True,
                 print_output=print_output)
         else:
-            raise ValueError("Method can be 'aglomerative' or 'divisive'.")
+            raise ValueError("Method can be 'aglomerative' or 'fixed-clusters'.")
+
+        self._set_solved_problem(sol)
+
+    def run_enhanced_community_detection(self,
+                                         method="aglomerative",
+                                         initial_guess="random",
+                                         num_sim=2,
+                                         num_clusters=None,
+                                         prob_mix=0.1,
+                                         sorting_method="default",
+                                         print_output=False
+                                         ):
+
+        self._initialize_problem_cd(
+            method=method,
+            num_clusters=num_clusters,
+            initial_guess=initial_guess,
+            enhanced=True,
+            weighted=True,
+            continuous=False,
+            sorting_method=sorting_method)
+
+        if method == "aglomerative":
+            sol = solver.solver_com_det_aglom(
+                adjacency_matrix=self.aux_adj,
+                cluster_assignment=self.init_guess,
+                num_sim=num_sim,
+                sort_edges=self.sorting_function,
+                calculate_surprise=self.surprise_function,
+                correct_partition_labeling=self.partition_labeler,
+                prob_mix=prob_mix,
+                flipping_function=cd.flipping_function_comdet_agl_new,
+                approx=None,
+                is_directed=True,
+                print_output=print_output)
+        elif method == "fixed-clusters":
+            sol = solver.solver_com_det_divis(
+                adjacency_matrix=self.aux_adj,
+                cluster_assignment=self.init_guess,
+                num_sim=num_sim,
+                sort_edges=self.sorting_function,
+                calculate_surprise=self.surprise_function,
+                correct_partition_labeling=self.partition_labeler,
+                flipping_function=cd.flipping_function_comdet_div_new,
+                approx=None,
+                is_directed=True,
+                print_output=print_output)
+        else:
+            raise ValueError("Method can be 'aglomerative' or 'fixed-clusters'.")
+
+        self._set_solved_problem(sol)
+
+    def run_discrete_community_detection(self,
+                                         method="aglomerative",
+                                         initial_guess=None,
+                                         weighted=None,
+                                         num_sim=None,
+                                         num_clusters=2,
+                                         prob_mix=0.1,
+                                         sorting_method="default",
+                                         print_output=False):
+
+        self._initialize_problem_cd(
+            method=method,
+            num_clusters=num_clusters,
+            initial_guess=initial_guess,
+            enhanced=False,
+            weighted=weighted,
+            continuous=False,
+            sorting_method=sorting_method)
+
+        if method == "aglomerative":
+            sol = solver.solver_com_det_aglom(
+                adjacency_matrix=self.aux_adj,
+                cluster_assignment=self.init_guess,
+                num_sim=num_sim,
+                sort_edges=self.sorting_function,
+                calculate_surprise=self.surprise_function,
+                correct_partition_labeling=self.partition_labeler,
+                prob_mix=prob_mix,
+                flipping_function=cd.flipping_function_comdet_agl_new,
+                approx=None,
+                is_directed=True,
+                print_output=print_output)
+        elif method == "fixed-clusters":
+            sol = solver.solver_com_det_divis(
+                adjacency_matrix=self.aux_adj,
+                cluster_assignment=self.init_guess,
+                num_sim=num_sim,
+                sort_edges=self.sorting_function,
+                calculate_surprise=self.surprise_function,
+                correct_partition_labeling=self.partition_labeler,
+                flipping_function=cd.flipping_function_comdet_div_new,
+                approx=None,
+                is_directed=True,
+                print_output=print_output)
+        else:
+            raise ValueError("Method can be 'aglomerative' or 'fixed-clusters'.")
 
         self._set_solved_problem(sol)
 
@@ -312,7 +459,9 @@ class DirectedGraph:
                                method,
                                num_clusters,
                                initial_guess,
+                               enhanced,
                                weighted,
+                               continuous,
                                sorting_method):
 
         self._set_initial_guess_cd(method, num_clusters, initial_guess)
@@ -324,13 +473,27 @@ class DirectedGraph:
                 self.aux_adj = self.adjacency
                 self.method = "binary"
         elif weighted:
-            try:
-                self.aux_adj = self.adjacency_weighted
+            if enhanced:
+                self.method = "enhanced"
+            elif continuous:
+                self.method = "continuous"
+            else:
                 self.method = "weighted"
-            except Exception:
+
+            if hasattr(self, "adjacency_weighted"):
+                self.aux_adj = self.adjacency_weighted
+                cond1 = (self.method == "enhanced" or
+                         self.method == "weighted")
+                cond2 = (self.aux_adj.astype(np.int64).sum() !=
+                         self.aux_adj.sum())
+                if cond1 and cond2:
+                    raise ValueError("The selected method works for discrete "
+                                     "weights, but the initialised graph has "
+                                     "continuous weights.")
+            else:
                 raise TypeError(
-                    "You choose weighted comunity detection but the graph"
-                    " you initialised is binary.")
+                    "You choose weighted community detection but the"
+                    " graph you initialised is binary.")
         else:
             self.aux_adj = self.adjacency
             self.method = "binary"
@@ -354,13 +517,14 @@ class DirectedGraph:
         surp_fun = {
             "binary": cd.calculate_surprise_logsum_clust_bin_new,
             "weighted": cd.calculate_surprise_logsum_clust_weigh_new,
+            "enhanced": cd.calculate_surprise_logsum_clust_enhanced_new,
+            "continuous": cd.calculate_surprise_logsum_clust_weigh_continuos,
         }
 
         self.surprise_function = surp_fun[self.method]
 
         # self.flipping_function = lambda x: CD.flipping_function_comdet(x)
-        self.flipping_function = lambda x, y: cd.flipping_function_comdet_new(
-            x, y, True)
+        # self.flipping_function = cd.flipping_function_comdet_new
 
         self.partition_labeler = lambda x: cd.labeling_communities(x)
 
@@ -369,8 +533,8 @@ class DirectedGraph:
                               num_clusters,
                               initial_guess):
 
-        if num_clusters is None and method == "divisive":
-            raise ValueError("When 'divisive' is passed as clustering 'method'"
+        if num_clusters is None and method == "fixed-clusters":
+            raise ValueError("When 'fixed-clusters' is passed as clustering 'method'"
                              " the 'num_clusters' argument must be specified.")
 
         if isinstance(initial_guess, str):
@@ -378,15 +542,24 @@ class DirectedGraph:
                 if method == "aglomerative":
                     self.init_guess = np.array(
                         [k for k in np.arange(self.n_nodes, dtype=np.int32)])
-                elif method == "divisive":
+                elif method == "fixed-clusters":
                     self.init_guess = np.random.randint(
                         low=num_clusters,
                         size=self.n_nodes)
-            elif initial_guess == "common-neighbours":
+            elif (initial_guess == "common-neigh-weak") or \
+                     (initial_guess == "common-neighbours"):
                 if method == "aglomerative":
-                    self.init_guess = ax.common_neigh_init_guess(
+                    self.init_guess = ax.common_neigh_init_guess_weak(
                         self.adjacency)
-                elif method == "divisive":
+                elif method == "fixed-clusters":
+                    self.init_guess = ax.fixed_clusters_init_guess_cn(
+                        adjacency=self.adjacency,
+                        n_clust=num_clusters)
+            elif initial_guess == "common-neigh-strong":
+                if method == "aglomerative":
+                    self.init_guess = ax.common_neigh_init_guess_strong(
+                        self.adjacency)
+                elif method == "fixed-clusters":
                     self.init_guess = ax.fixed_clusters_init_guess_cn(
                         adjacency=self.adjacency,
                         n_clust=num_clusters)
@@ -395,7 +568,8 @@ class DirectedGraph:
                     "The 'initial_guess' selected is not a valid."
                     "Initial guess can be an array specifying nodes membership"
                     " or an initialisation method ['common-neighbours',"
-                    " random]. For more details see documentation.")
+                    " 'random', 'common-neigh-weak', 'common-neigh-strong']."
+                    " For more details see documentation.")
 
         elif isinstance(initial_guess, np.ndarray):
             self.init_guess = initial_guess
@@ -407,11 +581,11 @@ class DirectedGraph:
                 "The length of the initial guess provided is different"
                 " from the network number of nodes.")
 
-        if (method == "divisive" and
+        if (method == "fixed-clusters" and
                 np.unique(self.init_guess).shape[0] != num_clusters):
             raise ValueError("The number of clusters of a custom initial guess"
                              " must coincide with 'num_clusters' when the "
-                             " divisive method is applied.")
+                             " fixed-clusters method is applied.")
 
     def _set_solved_problem(self, sol):
         self.solution = sol[0]

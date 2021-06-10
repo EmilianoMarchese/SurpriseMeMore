@@ -4,3 +4,7 @@ scipy==1.6.0
 networkx==2.5
 surprisemes==0.1.0
 setuptools==53.0.0
+tqdm==4.60.0
+pytest==6.2.2
+mpmath>=1.2.1
+sympy~=1.8

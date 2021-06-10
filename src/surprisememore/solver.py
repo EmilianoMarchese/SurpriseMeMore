@@ -1,4 +1,5 @@
 import numpy as np
+from tqdm import tqdm
 
 from . import comdet_functions as cd
 
@@ -37,7 +38,7 @@ def solver_cp(adjacency_matrix,
     sim = 0
     while sim < num_sim:
         # edges_counter = 0
-        for [u, v] in edges_sorted:
+        for [u, v] in tqdm(edges_sorted):
             # surprise_old = surprise
             cluster_assignment_temp1 = cluster_assignment.copy()
             cluster_assignment_temp2 = cluster_assignment.copy()
@@ -108,6 +109,7 @@ def solver_com_det_aglom(
         correct_partition_labeling,
         prob_mix,
         flipping_function,
+        approx,
         is_directed,
         print_output=False):
     """Community detection solver. It carries out the research of the optimal
@@ -129,6 +131,8 @@ def solver_com_det_aglom(
     :type prob_mix: [type]
     :param flipping_function:
     :type flipping_function:
+    :param approx:
+    :type approx:
     :param is_directed:
     :type is_directed:
     :param print_output: [description], defaults to False
@@ -138,17 +142,24 @@ def solver_com_det_aglom(
     """
     prob_random = (1 - prob_mix) / 2
 
-    obs_links = int(np.sum(adjacency_matrix))
+    obs_links = np.sum(adjacency_matrix.astype(bool))
+    obs_weights = np.sum(adjacency_matrix)
     n_nodes = int(adjacency_matrix.shape[0])
-    poss_links = int(n_nodes * (n_nodes - 1))
-    args = (obs_links, poss_links)
+    poss_links = n_nodes * (n_nodes - 1)
+    args = (obs_links, obs_weights, poss_links)
 
-    mem_intr_link = np.zeros(cluster_assignment.shape[0], dtype=np.int32)
+    cluster_assignment = correct_partition_labeling(
+        cluster_assignment.copy())
+    n_clusters = np.unique(cluster_assignment).shape[0]
+
+    mem_intr_link = np.zeros((2, n_clusters), dtype=np.float64)
     for ii in np.unique(cluster_assignment):
         indices = np.where(cluster_assignment == ii)[0]
-        mem_intr_link[ii] = cd.intracluster_links_aux(
+        l_aux, w_aux = cd.intracluster_links_aux_enh(
             adjacency_matrix,
             indices)
+        mem_intr_link[0][ii] = l_aux
+        mem_intr_link[1][ii] = w_aux
 
     surprise, _ = calculate_surprise(
         adjacency_matrix,
@@ -156,6 +167,7 @@ def solver_com_det_aglom(
         mem_intr_link,
         np.array([]),
         args,
+        approx,
         is_directed)
 
     contatore_break = 0
@@ -166,7 +178,7 @@ def solver_com_det_aglom(
         e_sorted = sort_edges(adjacency_matrix)
         # print(cluster_assignment)
         # print(e_sorted)
-        for [u, v] in e_sorted:
+        for [u, v] in tqdm(e_sorted):
             if cluster_assignment[u] != cluster_assignment[v]:
                 clus_u = cluster_assignment[u]
                 clus_v = cluster_assignment[v]
@@ -181,6 +193,7 @@ def solver_com_det_aglom(
                         mem_intr_link.copy(),
                         np.array([clus_u, clus_v]),
                         args,
+                        approx,
                         is_directed)
                     # print(cluster_assignement_temp, cluster_assignment)
                     # print("prob_1", u, v, temp_surprise, surprise)
@@ -193,6 +206,7 @@ def solver_com_det_aglom(
                         mem_intr_link.copy(),
                         np.array([clus_u, clus_v]),
                         args,
+                        approx,
                         is_directed)
                     # print(cluster_assignement_temp, cluster_assignment)
                     # print("prob_2", u, v, temp_surprise, surprise)
@@ -207,6 +221,7 @@ def solver_com_det_aglom(
                         mem_intr_link.copy(),
                         np.array([clus_u, clus_v]),
                         args,
+                        approx,
                         is_directed)
                     # print(cluster_assignement_temp, cluster_assignment)
                     # print("mixing", u, v, temp_surprise, surprise)
@@ -214,7 +229,7 @@ def solver_com_det_aglom(
                 if temp_surprise > surprise:
                     cluster_assignment = cluster_assignement_temp.copy()
                     surprise = temp_surprise
-                    mem_intr_link = temp_mem_intr_link
+                    mem_intr_link = temp_mem_intr_link.copy()
 
         if surprise > previous_surprise:
             contatore_break = 0
@@ -228,8 +243,14 @@ def solver_com_det_aglom(
         sim += 1
 
     cluster_assignment = flipping_function(
-        adjacency_matrix,
-        cluster_assignment.copy())
+        calculate_surprise=calculate_surprise,
+        adj=adjacency_matrix,
+        membership=cluster_assignment.copy(),
+        mem_intr_link=mem_intr_link.copy(),
+        args=args,
+        surprise=surprise,
+        approx=approx,
+        is_directed=is_directed)
 
     cluster_assignement_proper = correct_partition_labeling(
         cluster_assignment.copy())
@@ -244,6 +265,7 @@ def solver_com_det_divis(
         calculate_surprise,
         correct_partition_labeling,
         flipping_function,
+        approx,
         is_directed,
         print_output=False):
     """Community detection solver. It carries out the research of the optimal
@@ -263,6 +285,8 @@ def solver_com_det_divis(
     :type correct_partition_labeling: [type]
     :param flipping_function:
     :type flipping_function:
+    :param approx:
+    :type approx:
     :param is_directed:
     :type is_directed:
     :param print_output: [description], defaults to False
@@ -270,18 +294,22 @@ def solver_com_det_divis(
     :return: [description]
     :rtype: [type]
     """
-    obs_links = int(np.sum(adjacency_matrix))
+    obs_links = np.sum(adjacency_matrix.astype(bool))
+    obs_weights = np.sum(adjacency_matrix)
     n_nodes = int(adjacency_matrix.shape[0])
-    poss_links = int(n_nodes * (n_nodes - 1))
-    args = (obs_links, poss_links)
+    poss_links = n_nodes * (n_nodes - 1)
+    args = (obs_links, obs_weights, poss_links)
 
     n_clusters = np.unique(cluster_assignment).shape[0]
-    mem_intr_link = np.zeros(n_clusters, dtype=np.int32)
+
+    mem_intr_link = np.zeros((2, n_clusters), dtype=np.float64)
     for ii in np.unique(cluster_assignment):
         indices = np.where(cluster_assignment == ii)[0]
-        mem_intr_link[ii] = cd.intracluster_links_aux(
+        l_aux, w_aux = cd.intracluster_links_aux_enh(
             adjacency_matrix,
             indices)
+        mem_intr_link[0][ii] = l_aux
+        mem_intr_link[1][ii] = w_aux
 
     surprise, _ = calculate_surprise(
         adjacency_matrix,
@@ -289,6 +317,7 @@ def solver_com_det_divis(
         mem_intr_link,
         np.array([]),
         args,
+        approx,
         is_directed)
 
     contatore_break = 0
@@ -299,7 +328,7 @@ def solver_com_det_divis(
         e_sorted = sort_edges(adjacency_matrix)
         # print(cluster_assignment)
         # print(E_sorted)
-        for [u, v] in e_sorted:
+        for [u, v] in tqdm(e_sorted):
             cluster_assignment_temp1 = cluster_assignment.copy()
             cluster_assignment_temp2 = cluster_assignment.copy()
 
@@ -315,9 +344,11 @@ def solver_com_det_divis(
                     mem_intr_link.copy(),
                     np.array([clus_u, clus_v]),
                     args,
+                    approx,
                     is_directed)
 
-                if surprise_temp1 > surprise:
+                aux_n_clus = np.unique(cluster_assignment_temp1).shape[0]
+                if (surprise_temp1 > surprise) and (n_clusters == aux_n_clus):
                     cluster_assignment = cluster_assignment_temp1.copy()
                     surprise = surprise_temp1
                     mem_intr_link = temp_mem_intr_link1
@@ -328,9 +359,11 @@ def solver_com_det_divis(
                     mem_intr_link.copy(),
                     np.array([clus_u, clus_v]),
                     args,
+                    approx,
                     is_directed)
 
-                if surprise_temp2 > surprise:
+                aux_n_clus = np.unique(cluster_assignment_temp2).shape[0]
+                if (surprise_temp2 > surprise) and (n_clusters == aux_n_clus):
                     cluster_assignment = cluster_assignment_temp2.copy()
                     surprise = surprise_temp2
                     mem_intr_link = temp_mem_intr_link2
@@ -349,9 +382,11 @@ def solver_com_det_divis(
                     mem_intr_link.copy(),
                     np.array([clus_u, clus_v]),
                     args,
+                    approx,
                     is_directed)
 
-                if surprise_temp1 > surprise:
+                aux_n_clus = np.unique(cluster_assignment_temp1).shape[0]
+                if (surprise_temp1 > surprise) and (n_clusters == aux_n_clus):
                     cluster_assignment = cluster_assignment_temp1.copy()
                     surprise = surprise_temp1
                     mem_intr_link = temp_mem_intr_link1
@@ -362,9 +397,11 @@ def solver_com_det_divis(
                     mem_intr_link.copy(),
                     np.array([clus_u, clus_v]),
                     args,
+                    approx,
                     is_directed)
 
-                if surprise_temp2 > surprise:
+                aux_n_clus = np.unique(cluster_assignment_temp2).shape[0]
+                if (surprise_temp2 > surprise) and (n_clusters == aux_n_clus):
                     cluster_assignment = cluster_assignment_temp2.copy()
                     surprise = surprise_temp2
                     mem_intr_link = temp_mem_intr_link2
@@ -381,105 +418,14 @@ def solver_com_det_divis(
         sim += 1
 
     cluster_assignment = flipping_function(
-        adjacency_matrix,
-        cluster_assignment.copy())
-
-    cluster_assignement_proper = correct_partition_labeling(
-        cluster_assignment.copy())
-    return cluster_assignement_proper, surprise
-
-
-def solver_com_det_old(
-        adjacency_matrix,
-        cluster_assignment,
-        num_sim,
-        sort_edges,
-        calculate_surprise,
-        correct_partition_labeling,
-        prob_mix,
-        flipping_function,
-        print_output=False):
-    """[summary]
-
-    :param adjacency_matrix: [description]
-    :type adjacency_matrix: [type]
-    :param cluster_assignment: [description]
-    :type cluster_assignment: [type]
-    :param num_sim: [description]
-    :type num_sim: [type]
-    :param sort_edges: [description]
-    :type sort_edges: [type]
-    :param calculate_surprise: [description]
-    :type calculate_surprise: [type]
-    :param correct_partition_labeling: [description]
-    :type correct_partition_labeling: [type]
-    :param prob_mix: [description]
-    :type prob_mix: [type]
-    :param print_output: [description], defaults to False
-    :param flipping_function:
-    :type flipping_function:
-    :type print_output: bool, optional
-    :return: [description]
-    :rtype: [type]
-    """
-    prob_random = (1 - prob_mix) / 2
-    surprise = 0
-
-    contatore_break = 0
-
-    sim = 0
-    while sim < num_sim:
-        previous_surprise = surprise
-        e_sorted = sort_edges(adjacency_matrix)
-        # print(cluster_assignment)
-        # print(e_sorted)
-        for [u, v] in e_sorted:
-            if cluster_assignment[u] != cluster_assignment[v]:
-                cluster_assignement_temp = cluster_assignment.copy()
-                random_number = np.random.uniform()
-                if (random_number > prob_mix) & (
-                        random_number <= (prob_mix + prob_random)):
-                    cluster_assignement_temp[v] = cluster_assignment[u]
-                    temp_surprise = calculate_surprise(
-                        adjacency_matrix,
-                        cluster_assignement_temp)
-                    # print(cluster_assignement_temp, cluster_assignment)
-                    # print("prob_1", u, v, temp_surprise, surprise)
-                elif random_number > (prob_mix + prob_random):
-
-                    cluster_assignement_temp[u] = cluster_assignment[v]
-                    temp_surprise = calculate_surprise(
-                        adjacency_matrix,
-                        cluster_assignement_temp)
-                    # print(cluster_assignement_temp, cluster_assignment)
-                    # print("prob_2", u, v, temp_surprise, surprise)
-                else:
-                    aux_cluster = cluster_assignement_temp[u]
-                    cluster_assignement_temp[
-                        cluster_assignement_temp == aux_cluster] = \
-                        cluster_assignement_temp[v]
-                    temp_surprise = calculate_surprise(
-                        adjacency_matrix,
-                        cluster_assignement_temp)
-                    # print(cluster_assignement_temp, cluster_assignment)
-                    # print("mixing", u, v, temp_surprise, surprise)
-
-                if temp_surprise > surprise:
-                    cluster_assignment = cluster_assignement_temp.copy()
-                    surprise = temp_surprise
-        if surprise > previous_surprise:
-            contatore_break = 0
-        else:
-            contatore_break += 1
-
-        if contatore_break >= 10:
-            break
-        if print_output:
-            print(surprise)
-        sim += 1
-
-    cluster_assignment = flipping_function(adjacency_matrix,
-                                           cluster_assignment.copy())
+        calculate_surprise=calculate_surprise,
+        adj=adjacency_matrix,
+        membership=cluster_assignment.copy(),
+        mem_intr_link=mem_intr_link.copy(),
+        args=args,
+        surprise=surprise,
+        approx=approx,
+        is_directed=is_directed)
 
     cluster_assignement_proper = correct_partition_labeling(
         cluster_assignment.copy())

@@ -1,104 +1,61 @@
-Surprisemess
+SurpriseMeMore
 -------------------------------------------------------------------
 
-Surprisemess is a toolbox for detecting mesoscale structure in networks, released as a python3 module. 
+SurpriseMeMore is a toolbox for detecting mesoscale structure in networks, released as a python3 module. 
 
-NEMtropy provides the user with a state of the art solver for a range variety of Maximum Entropy Networks models derived from the ERGM family.
-This module allows you to solve the desired model and generate a number of randomized graphs from the original one: the so-called _graphs ensemble_.
+SurpriseMeMore provides the user with a variety of solvers, based on the _surprise_ framework, for the detection of mesoscale structures ( e.g. communities, core-periphery) in networks.
 
-NEMtropy builds on the current literature on the matter, improving both in speed of convergence and in the scale of the feasible networks.
-To explore Maximum-Entropy modeling on networks, checkout [Maximum Entropy Hub](https://meh.imtlucca.it/).
-
-The models implemented in NEMtropy are presented in a forthcoming [paper](https://arxiv.org/abs/2101.12625) on arXiv.
+The models implemented in SurpriseMeMore are presented in a forthcoming [paper](https://arxiv.org/abs/2106.05055) on arXiv.
 If you use the module for your scientific research, please consider citing us:
 
 ```
-    @misc{vallarano2021fast,
-          title={Fast and scalable likelihood maximization for Exponential Random Graph Models}, 
-          author={Nicolò Vallarano and Matteo Bruno and Emiliano Marchese and Giuseppe Trapani and Fabio Saracco and Tiziano Squartini and Giulio Cimini and Mario Zanon},
-          year={2021},
-          eprint={2101.12625},
-          archivePrefix={arXiv},
-          primaryClass={physics.data-an}
+    @misc{marchese2021detecting,
+      title={Detecting mesoscale structures by surprise}, 
+      author={Emiliano Marchese and Guido Caldarelli and Tiziano Squartini},
+      year={2021},
+      eprint={2106.05055},
+      archivePrefix={arXiv},
+      primaryClass={physics.soc-ph}
     }
 ```
 
 #### Table Of Contents
-- [Currently Implemented Models](#currently-implemented-models)
+- [Currently Implemented Methods](#currently-implemented-methods)
 - [Installation](#installation)
 - [Dependencies](#dependencies)
-- [A Simple Example](#simple-example)
+- [Some Examples](#some-examples)
 - [Development](#development)
-- [Testing](#testing)
 - [Credits](#credits)
 
-## Currently Implemented Models
-The main feature of NEMtropy is (but not limited to) *network randomization*. 
-The specific kind of network to randomize and property to preserve defines the model you need:
+## Currently Implemented Methods
+The available methods, for both directed and undirected networks, are:
 
-* **UBCM** *Undirected Binary Configuration Model* [[1]](#1)
-* **UECM** *Undirected Enhanced Configuration Model* [[1]](#1)
-* **DBCM** *Directed Binary Configuration Model* [[1]](#1)
-* **DECM** *Directed Enhanced Configuration Model* [[1]](#1)
-* **CReMa** [[2]](#2)
-* **BiCM** *Bipartite Configuration Model* [[3]](#3)
-
-The following table may helps you identify the model that fits your needs in function of the type of network you are working with;
-for in-depth discussion please see the references.
-
-[...] | Undirected Graph | Directed Graph | Bipartite Graph
------ | ---------------- | -------------- | --------------
-**Binary Graph** | *UBCM* | *DBCM* | *BiCM*
-**Weighted Graph** | *UECM*, *CReMa*  | *DECM*, *CReMa* | -
-
-The BiCM module is also available as [a standalone package](https://github.com/mat701/BiCM), find its docs [here](https://bipartite-configuration-model.readthedocs.io/en/latest/). 
-
-_References_
-
-* <a id="1">[1]</a>
-    Squartini, Tiziano, Rossana Mastrandrea, and Diego Garlaschelli.
-    "Unbiased sampling of network ensembles."
-    New Journal of Physics 17.2 (2015): 023052.
-    https://arxiv.org/abs/1406.1197
-* <a id="2">[2]</a>
-    Parisi, Federica, Tiziano Squartini, and Diego Garlaschelli.
-    "A faster horse on a safer trail: generalized inference for the efficient reconstruction of weighted networks."
-    New Journal of Physics 22.5 (2020): 053053.
-    https://arxiv.org/abs/1811.09829
-* <a id="3">[3]</a>
-    Saracco, Fabio, Riccardo Di Clemente, Andrea Gabrielli, and Tiziano Squartini.
-	"Randomizing bipartite networks: the case of the World Trade Web." 
-	Scientific reports 5, no. 1 (2015): 1-18.
-    https://doi.org/10.1038/srep10595
-
+* *Community detection on binary networks* 
+* *Community detection on weighted networks with integer weights* 
+* *Community detection on weighted networks with continuous weights* 
+* *Core-Peryphery detection on binary networks* 
+* *Core-Peryphery detection on weighted networks with integer weights*
 
 Installation
 ------------
-
-NEMtropy can be installed via pip. You can get it from your terminal:
+SurpriseMeMore can be installed via pip. You can get it from your terminal:
 
 ```
-    $ pip install NEMtropy
+    $ pip install surprisememore
 ```
 
 If you already install the package and wish to upgrade it,
 you can simply type from your terminal:
 
 ```
-    $ pip install NEMtropy --upgrade
+    $ pip install surprisememore --upgrade
 ```
 
 Dependencies
 ------------
 
-NEMtropy uses <code>numba</code> and <code>powerlaw</code> libraries. They can be installed via pip by running in your terminal the following command:
-
-```
-    $ pip install numba
-    $ pip install powerlaw
-```
-
-For <code>python3.5</code> users the correct command is the following:
+NEMtropy uses <code>numba</code> library. It is installed automatically with surprisememore.
+If you use <code>python3.5</code> you may incur in an error, we suggest installing numba with the following command:
 
 ```
     $ pip install --prefer-binary numba
@@ -107,57 +64,92 @@ For <code>python3.5</code> users the correct command is the following:
 It avoids an error during the installation of <code>llvmlite</code> due to 
 the absence of its wheel in <code>python3.5</code>.
 
-Simple Example
+Some Examples
 --------------
-As an example we solve the UBCM for zachary karate club network.
+As an example, we run community detection on zachary karate club network.
 
 ```
     import numpy as np
     import networkx as nx
-    from NEMtropy import UndirectedGraph
+    from surprisememore import UndirectedGraph
 
+    from surprisememore import UndirectedGraph
+    import networkx as nx
+    
     G = nx.karate_club_graph()
     adj_kar = nx.to_numpy_array(G)
     graph = UndirectedGraph(adj_kar)
-
-    graph.solve_tool(model="cm_exp",
-                 method="newton",
-                 initial_guess="random")
+    
+    graph.run_discrete_community_detection(weighted=False,
+                                           num_sim=2)
 ```
-
-Given the UBCM model, we can generate ten random copies of zachary's karate club.
-
-```
-    graph.ensemble_sampler(10, cpu_n=2, output_dir="sample/")
-```
-
-These copies are saved as an edgelist, each edgelist can be converted to an
-adjacency matrix by running the NEMtropy build graph function.
+The algorithm will find the best partition by optimizing surprise score
+function. At the end of the optimization process, the optimal partition is
+saved as an attribute of the graph class.
 
 ```
-    from NEMtropy.network_functions import build_graph_from_edgelist
-
-    edgelist_ens = np.loadtxt("sample/0.txt")
-    ens_adj = build_graph_from_edgelist(edgelist = edgelist_ens,
-                                    is_directed = False,
-                                    is_sparse = False,
-                                    is_weighted = False)
+    # optimal partition
+    graph.solution
+    
+    # Surprise of the optimal partition
+    graph.surprise
+    
+    # Log surprise
+    graph.log_surprise
 ```
 
-These collection of random adjacency matrices can be used as a null model:
-it is enough to compute the expected value of the selected network feature 
-on the ensemble of matrices and to compare it with its original value.
+Similarly, we can run the algorithm detecting bimodular structure. In the case
+of zachary karate club, the code snippet is the following.
 
-To learn more, please read the two ipython notebooks in the examples directory:
-one is a study case on a [directed graph](https://github.com/nicoloval/NEMtropy/blob/master/examples/Directed%20Graphs.ipynb), 
-while the other is on an [undirected graph](https://github.com/nicoloval/NEMtropy/blob/master/examples/Undirected%20Graphs.ipynb).
+#%% md
 
-You can find complete documentation about NEMtropy library in [docs](https://nemtropy.readthedocs.io/en/master/index.html).
+```
+    from surprisememore import UndirectedGraph
+    import networkx as nx
+    
+    G = nx.karate_club_graph()
+    adj_kar = nx.to_numpy_array(G)
+    graph = UndirectedGraph(adjacency=adj_kar)
+```
+
+Here we initialized our SupriseMeMore **UndirectedGraph** object with the adjacency
+matrix. The available options are adjacency matrix or edgelist.
+
+* If you use adjacency matrix, then you have to pass the matrix as a **numpy.ndarray**;
+
+* If you use edgelist, then the edgelist has to be passed as a **list of tuple**:
+    * [(u, v), (u, t), ...] for binary networks;
+    * [(u, v, w1), (u, t, w2), ...] for weighted networks;
+
+For more details about edgelist format you can see [link](https://networkx.org/documentation/stable/reference/classes/generated/networkx.DiGraph.add_weighted_edges_from.html?highlight=add_weighted_edges_from#networkx.DiGraph.add_weighted_edges_from).
+
+```
+    graph.run_discrete_cp_detection(weighted=False, num_sim=2)
+```
+
+In the previous example I passed two optional arguments to the function: *weighted*
+and *num_sim*. The argument *weighted* specify which version of surprise you want 
+to use: binary or weighted. If the network is binary, you don't need to pass 
+the argument "weighted", the class detects by itself that the graph is binary 
+and use the proper method for community/bimodular detection. Instead, if the 
+network has weights, the default method is the weighted one. To run binary 
+community/bimodular detection you must specify "weighted"=False.
+
+The arguments *num_sim* specifies the number of time we run over all the edges 
+of the network during the optimization problem. You can find more detail about the
+algorithm in [1](https://arxiv.org/abs/2106.05055), [2](https://www.nature.com/articles/srep19250).
+
+All the implemented algorithms are heuristic, we suggest running them more 
+than once and pick the best solution (the one with higher log_surprise).
+
+To learn more, please read the two ipython notebooks in the examples' directory:
+one is a study case on a [community detection](https://github.com/nicoloval/NEMtropy/blob/master/examples/Community%20Detection.ipynb), 
+while the other is on an [bimodular detection](https://github.com/nicoloval/NEMtropy/blob/master/examples/Mesoscale%20Structure%20Detection.ipynb).
 
 Development
 -----------
 Please work on a feature branch and create a pull request to the development 
-branch. If necessary to merge manually do so without fast forward:
+branch. If necessary to merge manually do so without fast-forward:
 
 ```
     $ git merge --no-ff myfeature
@@ -171,29 +163,14 @@ To build a development environment run:
     $ pip install -e '.[dev]'
 ```
 
-Testing
--------
-If you want to test the package integrity, you can run the following 
-bash command from the tests directory:
-
-```
-    $ bash run_all.sh
-```
-
-__P.S.__ _at the moment there may be some problems with the DECM solver functions_
-
 Credits
 -------
 
-_Authors_:
-
-[Nicolò Vallarano](http://www.imtlucca.it/en/nicolo.vallarano/) (a.k.a. [nicoloval](https://github.com/nicoloval))
+_Author_:
 
 [Emiliano Marchese](https://www.imtlucca.it/en/emiliano.marchese/) (a.k.a. [EmilianoMarchese](https://github.com/EmilianoMarchese))
 
-[Matteo Bruno](https://www.imtlucca.it/en/matteo.bruno/) (BiCM) (a.k.a. [mat701](https://github.com/mat701))
 
 _Acknowledgements:_
 
-The module was developed under the supervision of [Tiziano Squartini](http://www.imtlucca.it/en/tiziano.squartini/), [Fabio Saracco](http://www.imtlucca.it/en/fabio.saracco/), [Mario Zanon](http://www.imtlucca.it/it/mario.zanon/), and [Giulio Cimini](https://www.fisica.uniroma2.it/elenco-telefonico/ciminigi/).
-It was developed at [IMT school of advanced studies Lucca](https://www.imtlucca.it/), and financed by the research project Optimized Reconstruction of Complex networkS - ORCS.
+The module was developed under the supervision of [Tiziano Squartini](http://www.imtlucca.it/en/tiziano.squartini/).
