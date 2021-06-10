@@ -18,7 +18,7 @@ setup(
     long_description_content_type="text/markdown",
     license="MIT",
     url="https://github.com/EmilianoMarchese/SurpriseMeMore",
-    download_url="",
+    download_url="https://github.com/EmilianoMarchese/SurpriseMeMore/archive/refs/tags/v0.1.0.zip",
     keywords=['community detection', 'core-periphery detection',
               'graphs', "multi-graphs", "weighted graphs", "surprise"],
     classifiers=[
