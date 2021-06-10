@@ -33,8 +33,8 @@ The available methods, for both directed and undirected networks, are:
 * *Community detection on binary networks* 
 * *Community detection on weighted networks with integer weights* 
 * *Community detection on weighted networks with continuous weights* 
-* *Core-Peryphery detection on binary networks* 
-* *Core-Peryphery detection on weighted networks with integer weights*
+* *Core-Periphery detection on binary networks* 
+* *Core-Periphery detection on weighted networks with integer weights*
 
 Installation
 ------------
