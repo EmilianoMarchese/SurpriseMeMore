@@ -168,8 +168,8 @@ All the implemented algorithms are heuristic, we suggest running them more
 than once and pick the best solution (the one with higher log_surprise).
 
 To learn more, please read the two ipython notebooks in the examples' directory:
-one is a study case on a [community detection](https://github.com/nicoloval/NEMtropy/blob/master/examples/Community%20Detection.ipynb), 
-while the other is on an [bimodular detection](https://github.com/nicoloval/NEMtropy/blob/master/examples/Mesoscale%20Structure%20Detection.ipynb).
+one is about  [community detection](https://github.com/EmilianoMarchese/SurpriseMeMore/blob/master/examples/Community%20Detection.ipynb), 
+while the other is about [bimodular structure detection](https://github.com/EmilianoMarchese/SurpriseMeMore/blob/master/examples/Mesoscale%20Structure%20Detection.ipynb).
 
 Development
 -----------
