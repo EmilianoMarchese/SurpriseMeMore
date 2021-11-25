@@ -5,3 +5,6 @@ Untitled.ipynb
 Untitled2.ipynb
 /.vscode/
 /.pytest_cache/
+*.idea
+*.egg-info
+*.tar.gz
