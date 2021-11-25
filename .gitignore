@@ -1,0 +1,7 @@
+venv
+.coverage
+prove.ipynb
+Untitled.ipynb
+Untitled2.ipynb
+/.vscode/
+/.pytest_cache/
