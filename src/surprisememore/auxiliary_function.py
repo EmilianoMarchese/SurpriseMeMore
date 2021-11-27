@@ -5,7 +5,6 @@ from numba import jit
 from scipy.sparse import isspmatrix
 from scipy.special import comb
 
-from . import comdet_functions as cd
 from . import cp_functions as cp
 
 
