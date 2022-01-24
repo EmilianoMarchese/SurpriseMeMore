@@ -294,7 +294,7 @@ class UndirectedGraph:
                 " the network number of nodes.")
 
     def run_continuous_community_detection(self,
-                                           method="aglomerative",
+                                           method="agglomerative",
                                            initial_guess="random",
                                            approx=None,
                                            num_sim=2,
@@ -312,7 +312,7 @@ class UndirectedGraph:
             continuous=True,
             sorting_method=sorting_method)
 
-        if method == "aglomerative":
+        if method == "agglomerative":
             sol = solver.solver_com_det_aglom(
                 adjacency_matrix=self.aux_adj,
                 cluster_assignment=self.init_guess,
@@ -338,12 +338,12 @@ class UndirectedGraph:
                 is_directed=False,
                 print_output=print_output)
         else:
-            raise ValueError("Method can be 'aglomerative' or 'fixed-clusters'.")
+            raise ValueError("Method can be 'agglomerative' or 'fixed-clusters'.")
 
         self._set_solved_problem(sol)
 
     def run_enhanced_community_detection(self,
-                                         method="aglomerative",
+                                         method="agglomerative",
                                          initial_guess="random",
                                          num_sim=2,
                                          num_clusters=None,
@@ -361,7 +361,7 @@ class UndirectedGraph:
             continuous=False,
             sorting_method=sorting_method)
 
-        if method == "aglomerative":
+        if method == "agglomerative":
             sol = solver.solver_com_det_aglom(
                 adjacency_matrix=self.aux_adj,
                 cluster_assignment=self.init_guess,
@@ -387,12 +387,12 @@ class UndirectedGraph:
                 is_directed=False,
                 print_output=print_output)
         else:
-            raise ValueError("Method can be 'aglomerative' or 'fixed-clusters'.")
+            raise ValueError("Method can be 'agglomerative' or 'fixed-clusters'.")
 
         self._set_solved_problem(sol)
 
     def run_discrete_community_detection(self,
-                                         method="aglomerative",
+                                         method="agglomerative",
                                          initial_guess="random",
                                          weighted=None,
                                          num_sim=2,
@@ -410,7 +410,7 @@ class UndirectedGraph:
             continuous=False,
             sorting_method=sorting_method)
 
-        if method == "aglomerative":
+        if method == "agglomerative":
             sol = solver.solver_com_det_aglom(
                 adjacency_matrix=self.aux_adj,
                 cluster_assignment=self.init_guess,
@@ -436,7 +436,7 @@ class UndirectedGraph:
                 is_directed=False,
                 print_output=print_output)
         else:
-            raise ValueError("Method can be 'aglomerative' or 'fixed-clusters'.")
+            raise ValueError("Method can be 'agglomerative' or 'fixed-clusters'.")
 
         self._set_solved_problem(sol)
 
@@ -525,7 +525,7 @@ class UndirectedGraph:
 
         if isinstance(initial_guess, str):
             if initial_guess == "random":
-                if method == "aglomerative":
+                if method == "agglomerative":
                     self.init_guess = np.array(
                         [k for k in np.arange(self.n_nodes, dtype=np.int32)])
                 elif method == "fixed-clusters":
@@ -534,7 +534,7 @@ class UndirectedGraph:
                         size=self.n_nodes)
             elif (initial_guess == "common-neigh-weak") or \
                     (initial_guess == "common-neighbours"):
-                if method == "aglomerative":
+                if method == "agglomerative":
                     self.init_guess = ax.common_neigh_init_guess_weak(
                         self.adjacency)
                 elif method == "fixed-clusters":
@@ -542,7 +542,7 @@ class UndirectedGraph:
                         adjacency=self.adjacency,
                         n_clust=num_clusters)
             elif initial_guess == "common-neigh-strong":
-                if method == "aglomerative":
+                if method == "agglomerative":
                     self.init_guess = ax.common_neigh_init_guess_strong(
                         self.adjacency)
                 elif method == "fixed-clusters":
