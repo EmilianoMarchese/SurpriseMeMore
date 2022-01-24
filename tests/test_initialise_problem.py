@@ -68,7 +68,7 @@ class TestInitialGuess:
         init_guess = np.array(
                 [k for k in np.arange(graph.n_nodes, dtype=np.int32)])
 
-        graph._set_initial_guess_cd(method="aglomerative",
+        graph._set_initial_guess_cd(method="agglomerative",
                                     num_clusters=None,
                                     initial_guess=None)
 
@@ -80,7 +80,7 @@ class TestInitialGuess:
         init_guess = np.array(
             [k for k in np.arange(graph.n_nodes, dtype=np.int32)])
 
-        graph._set_initial_guess_cd(method="aglomerative",
+        graph._set_initial_guess_cd(method="agglomerative",
                                     num_clusters=None,
                                     initial_guess=None)
 
@@ -89,7 +89,7 @@ class TestInitialGuess:
     def test_initial_guess_cd_aglom_undir_common_neigh(self):
         graph = surp.UndirectedGraph(adjacency=adjacency_und)
 
-        graph._set_initial_guess_cd(method="aglomerative",
+        graph._set_initial_guess_cd(method="agglomerative",
                                     num_clusters=None,
                                     initial_guess=None)
 
@@ -98,7 +98,7 @@ class TestInitialGuess:
     def test_initial_guess_cd_aglom_dir_common_neigh(self):
         graph = surp.DirectedGraph(adjacency=adjacency_dir)
 
-        graph._set_initial_guess_cd(method="aglomerative",
+        graph._set_initial_guess_cd(method="agglomerative",
                                     num_clusters=None,
                                     initial_guess=None)
 
@@ -110,7 +110,7 @@ class TestInitialGuess:
         init_guess = np.array([k for k in np.arange(graph.n_nodes-10)] +
                               [k for k in np.arange(10)])
 
-        graph._set_initial_guess_cd(method="aglomerative",
+        graph._set_initial_guess_cd(method="agglomerative",
                                     num_clusters=None,
                                     initial_guess=init_guess)
 
@@ -122,7 +122,7 @@ class TestInitialGuess:
         init_guess = np.array([k for k in np.arange(graph.n_nodes - 10)] +
                               [k for k in np.arange(10)])
 
-        graph._set_initial_guess_cd(method="aglomerative",
+        graph._set_initial_guess_cd(method="agglomerative",
                                     num_clusters=None,
                                     initial_guess=init_guess)
 
