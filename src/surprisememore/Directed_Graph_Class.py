@@ -228,7 +228,11 @@ class DirectedGraph:
         if (sorting_method == "default") and self.is_weighted:
             sorting_method = "random"
         elif (sorting_method == "default") and (not self.is_weighted):
-            sorting_method = "jaccard"
+            sorting_method = "random"
+
+        if sorting_method in ['degrees', 'stengths']:
+            raise ValueError('Degrees and strengths sorting methods are not '
+                             'implemented yet.')
 
         sort_func = {
             "random": lambda x: ax.shuffled_edges(x, True),
@@ -285,7 +289,7 @@ class DirectedGraph:
                         self.degree_sequence_out.argsort()[-aux_n:]] = 0
             elif initial_guess == "eigenvector":
                 self.init_guess = ax.eigenvector_init_guess(self.adjacency,
-                                                               False)
+                                                            False)
             else:
                 raise ValueError("Valid values of initial guess are 'random', "
                                  "eigenvector or a custom initial guess ("
@@ -353,7 +357,8 @@ class DirectedGraph:
                 is_directed=True,
                 print_output=print_output)
         else:
-            raise ValueError("Method can be 'agglomerative' or 'fixed-clusters'.")
+            raise ValueError(
+                "Method can be 'agglomerative' or 'fixed-clusters'.")
 
         self._set_solved_problem(sol)
 
@@ -402,7 +407,8 @@ class DirectedGraph:
                 is_directed=True,
                 print_output=print_output)
         else:
-            raise ValueError("Method can be 'agglomerative' or 'fixed-clusters'.")
+            raise ValueError(
+                "Method can be 'agglomerative' or 'fixed-clusters'.")
 
         self._set_solved_problem(sol)
 
@@ -451,7 +457,8 @@ class DirectedGraph:
                 is_directed=True,
                 print_output=print_output)
         else:
-            raise ValueError("Method can be 'agglomerative' or 'fixed-clusters'.")
+            raise ValueError(
+                "Method can be 'agglomerative' or 'fixed-clusters'.")
 
         self._set_solved_problem(sol)
 
@@ -503,6 +510,9 @@ class DirectedGraph:
         elif (sorting_method == "default") and (not self.is_weighted):
             sorting_method = "random"
 
+        if sorting_method in ['strengths']:
+            raise ValueError('Strengths sort method is not implemented yet.')
+
         sort_func = {
             "random": lambda x: ax.shuffled_edges(x, True),
             "strengths": None,
@@ -534,8 +544,9 @@ class DirectedGraph:
                               initial_guess):
 
         if num_clusters is None and method == "fixed-clusters":
-            raise ValueError("When 'fixed-clusters' is passed as clustering 'method'"
-                             " the 'num_clusters' argument must be specified.")
+            raise ValueError(
+                "When 'fixed-clusters' is passed as clustering 'method'"
+                " the 'num_clusters' argument must be specified.")
 
         if isinstance(initial_guess, str):
             if initial_guess == "random":
@@ -547,7 +558,7 @@ class DirectedGraph:
                         low=num_clusters,
                         size=self.n_nodes)
             elif (initial_guess == "common-neigh-weak") or \
-                     (initial_guess == "common-neighbours"):
+                    (initial_guess == "common-neighbours"):
                 if method == "agglomerative":
                     self.init_guess = ax.common_neigh_init_guess_weak(
                         self.adjacency)

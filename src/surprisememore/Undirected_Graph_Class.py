@@ -213,6 +213,10 @@ class UndirectedGraph:
         elif (sorting_method == "default") and (not self.is_weighted):
             sorting_method = "jaccard"
 
+        if sorting_method in ['degrees', 'stengths']:
+            raise ValueError('Degrees and strengths sorting methods are not '
+                             'implemented yet.')
+
         sort_func = {
             "random": lambda x: ax.shuffled_edges(x, False),
             "jaccard": lambda x: ax.jaccard_sorted_edges(x),
@@ -487,6 +491,9 @@ class UndirectedGraph:
             sorting_method = "random"
         elif (sorting_method == "default") and (not self.is_weighted):
             sorting_method = "jaccard"
+
+        if sorting_method in ['strengths']:
+            raise ValueError('Strengths sort method is not implemented yet.')
 
         sort_func = {
             "random": lambda x: ax.shuffled_edges(x, False),
