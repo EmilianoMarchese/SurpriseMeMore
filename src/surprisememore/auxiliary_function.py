@@ -2,10 +2,50 @@ import networkx as nx
 import numpy as np
 import scipy
 from numba import jit
+from numba.typed import List
 from scipy.sparse import isspmatrix
 from scipy.special import comb
 
 from . import cp_functions as cp
+
+
+@jit(nopython=True)
+def compute_neighbours_alt(adj):
+    neig_dict = {}
+    for i in range(adj.shape[0]):
+        neigh1 = np.where(adj[i, :])[0]
+        neig_dict[i] = neigh1
+    return neig_dict
+
+
+@jit(nopython=True)
+def compute_max_neighbor(node, neighbors):
+    max_cn = 0
+    index_max_cn = 0
+    node_ng = neighbors[node]
+    for ii, ng in enumerate(neighbors.values()):
+        if ii != node:
+            aux_cn = intersection(node_ng, ng)
+            if aux_cn > max_cn:
+                max_cn = aux_cn
+                index_max_cn = ii
+    return index_max_cn
+
+
+@jit(nopython=True)
+def intersection(arr1, arr2):
+    m = List([1])
+    m.pop()
+    intersect = 0
+    if arr1.shape[0] < arr2.shape[0]:
+        for i in arr2:
+            if i in arr1:
+                intersect+=1
+    else:
+        for i in arr1:
+            if i in arr2:
+                intersect+=1
+    return intersect
 
 
 def compute_neighbours(adj):
@@ -36,7 +76,7 @@ def compute_cn(adjacency):
 
 
 @jit(nopython=True)
-def common_neigh_init_guess_strong(adjacency):
+def common_neigh_init_guess_strong_old(adjacency):
     """Generates a preprocessed initial guess based on the common neighbours
      of nodes. It makes a stronger aggregation of nodes based on
       the common neighbours similarity.
@@ -57,7 +97,28 @@ def common_neigh_init_guess_strong(adjacency):
 
 
 @jit(nopython=True)
-def common_neigh_init_guess_weak(adjacency):
+def common_neigh_init_guess_strong(adjacency):
+    """Generates a preprocessed initial guess based on the common neighbours
+     of nodes. It makes a stronger aggregation of nodes based on
+      the common neighbours similarity.
+
+    :param adjacency: Adjacency matrix.
+    :type adjacency: numpy.ndarray
+    :return: Initial guess for nodes memberships.
+    :rtype: np.array
+    """
+    neighbors = compute_neighbours_alt(adjacency)
+    memberships = np.array(
+        [k for k in np.arange(adjacency.shape[0], dtype=np.int32)])
+    argsorted = np.argsort(adjacency.astype(np.bool_).sum(axis=1))[::-1]
+    for aux_node1 in argsorted:
+        aux_tmp = memberships == aux_node1
+        memberships[aux_tmp] = memberships[compute_max_neighbor(aux_node1, neighbors)]
+    return memberships
+
+
+@jit(nopython=True)
+def common_neigh_init_guess_weak_old(adjacency):
     """Generates a preprocessed initial guess based on the common neighbours
      of nodes. It makes a weaker aggregation of nodes based on
       the common neighbours similarity.
@@ -78,6 +139,31 @@ def common_neigh_init_guess_weak(adjacency):
         if degree[aux_node1] >= avg_degree:
             aux_tmp = memberships == aux_node1
             memberships[aux_tmp] = memberships[np.argmax(cn_table[aux_node1])]
+    return memberships
+
+
+@jit(nopython=True)
+def common_neigh_init_guess_weak(adjacency):
+    """Generates a preprocessed initial guess based on the common neighbours
+     of nodes. It makes a weaker aggregation of nodes based on
+      the common neighbours similarity.
+
+    :param adjacency: Adjacency matrix.
+    :type adjacency: numpy.ndarray
+    :return: Initial guess for nodes memberships.
+    :rtype: np.array
+    """
+    neighbors = compute_neighbours_alt(adjacency)
+    memberships = np.array(
+        [k for k in np.arange(adjacency.shape[0], dtype=np.int32)])
+    degree = (adjacency.astype(np.bool_).sum(axis=1)
+              + adjacency.astype(np.bool_).sum(axis=0))
+    avg_degree = np.mean(degree)
+    argsorted = np.argsort(degree)[::-1]
+    for aux_node1 in argsorted:
+        if degree[aux_node1] >= avg_degree:
+            aux_tmp = memberships == aux_node1
+            memberships[aux_tmp] = memberships[compute_max_neighbor(aux_node1, neighbors)]
     return memberships
 
 
