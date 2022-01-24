@@ -2,11 +2,50 @@ import networkx as nx
 import numpy as np
 import scipy
 from numba import jit
+from numba.typed import List
 from scipy.sparse import isspmatrix
 from scipy.special import comb
 
-from . import comdet_functions as cd
 from . import cp_functions as cp
+
+
+@jit(nopython=True)
+def compute_neighbours_alt(adj):
+    neig_dict = {}
+    for i in range(adj.shape[0]):
+        neigh1 = np.where(adj[i, :])[0]
+        neig_dict[i] = neigh1
+    return neig_dict
+
+
+@jit(nopython=True)
+def compute_max_neighbor(node, neighbors):
+    max_cn = 0
+    index_max_cn = 0
+    node_ng = neighbors[node]
+    for ii, ng in enumerate(neighbors.values()):
+        if ii != node:
+            aux_cn = intersection(node_ng, ng)
+            if aux_cn > max_cn:
+                max_cn = aux_cn
+                index_max_cn = ii
+    return index_max_cn
+
+
+@jit(nopython=True)
+def intersection(arr1, arr2):
+    m = List([1])
+    m.pop()
+    intersect = 0
+    if arr1.shape[0] < arr2.shape[0]:
+        for i in arr2:
+            if i in arr1:
+                intersect+=1
+    else:
+        for i in arr1:
+            if i in arr2:
+                intersect+=1
+    return intersect
 
 
 def compute_neighbours(adj):
@@ -37,7 +76,7 @@ def compute_cn(adjacency):
 
 
 @jit(nopython=True)
-def common_neigh_init_guess_strong(adjacency):
+def common_neigh_init_guess_strong_old(adjacency):
     """Generates a preprocessed initial guess based on the common neighbours
      of nodes. It makes a stronger aggregation of nodes based on
       the common neighbours similarity.
@@ -58,7 +97,28 @@ def common_neigh_init_guess_strong(adjacency):
 
 
 @jit(nopython=True)
-def common_neigh_init_guess_weak(adjacency):
+def common_neigh_init_guess_strong(adjacency):
+    """Generates a preprocessed initial guess based on the common neighbours
+     of nodes. It makes a stronger aggregation of nodes based on
+      the common neighbours similarity.
+
+    :param adjacency: Adjacency matrix.
+    :type adjacency: numpy.ndarray
+    :return: Initial guess for nodes memberships.
+    :rtype: np.array
+    """
+    neighbors = compute_neighbours_alt(adjacency)
+    memberships = np.array(
+        [k for k in np.arange(adjacency.shape[0], dtype=np.int32)])
+    argsorted = np.argsort(adjacency.astype(np.bool_).sum(axis=1))[::-1]
+    for aux_node1 in argsorted:
+        aux_tmp = memberships == aux_node1
+        memberships[aux_tmp] = memberships[compute_max_neighbor(aux_node1, neighbors)]
+    return memberships
+
+
+@jit(nopython=True)
+def common_neigh_init_guess_weak_old(adjacency):
     """Generates a preprocessed initial guess based on the common neighbours
      of nodes. It makes a weaker aggregation of nodes based on
       the common neighbours similarity.
@@ -79,6 +139,31 @@ def common_neigh_init_guess_weak(adjacency):
         if degree[aux_node1] >= avg_degree:
             aux_tmp = memberships == aux_node1
             memberships[aux_tmp] = memberships[np.argmax(cn_table[aux_node1])]
+    return memberships
+
+
+@jit(nopython=True)
+def common_neigh_init_guess_weak(adjacency):
+    """Generates a preprocessed initial guess based on the common neighbours
+     of nodes. It makes a weaker aggregation of nodes based on
+      the common neighbours similarity.
+
+    :param adjacency: Adjacency matrix.
+    :type adjacency: numpy.ndarray
+    :return: Initial guess for nodes memberships.
+    :rtype: np.array
+    """
+    neighbors = compute_neighbours_alt(adjacency)
+    memberships = np.array(
+        [k for k in np.arange(adjacency.shape[0], dtype=np.int32)])
+    degree = (adjacency.astype(np.bool_).sum(axis=1)
+              + adjacency.astype(np.bool_).sum(axis=0))
+    avg_degree = np.mean(degree)
+    argsorted = np.argsort(degree)[::-1]
+    for aux_node1 in argsorted:
+        if degree[aux_node1] >= avg_degree:
+            aux_tmp = memberships == aux_node1
+            memberships[aux_tmp] = memberships[compute_max_neighbor(aux_node1, neighbors)]
     return memberships
 
 
@@ -434,112 +519,6 @@ def jaccard_sorted_edges(adjacency_matrix):
     return sorted_edges
 
 
-def evaluate_surprise_clust_bin(adjacency_matrix,
-                                cluster_assignment,
-                                is_directed):
-    """Calculates the logarithm of the surprise given the current partitions
-     for a binary network.
-
-    :param adjacency_matrix: Binary adjacency matrix.
-    :type adjacency_matrix: numpy.ndarray
-    :param cluster_assignment: Nodes memberships.
-    :type cluster_assignment: numpy.ndarray
-    :param is_directed: True if the graph is directed.
-    :type is_directed: bool
-    :return: Log-surprise.
-    :rtype: float
-    """
-    if is_directed:
-        # intracluster links
-        p = cd.intracluster_links(adjacency_matrix,
-                                  cluster_assignment)
-        p = int(p)
-        # All the possible intracluster links
-        M = cd.calculate_possible_intracluster_links(cluster_assignment,
-                                                     is_directed)
-        # Observed links
-        m = np.sum(adjacency_matrix.astype(bool))
-        # Possible links
-        n = adjacency_matrix.shape[0]
-        F = n * (n - 1)
-    else:
-        # intracluster links
-        p = cd.intracluster_links(adjacency_matrix,
-                                  cluster_assignment)
-        p = int(p / 2)
-        # All the possible intracluster links
-        M = int(cd.calculate_possible_intracluster_links(cluster_assignment,
-                                                         is_directed))
-        # Observed links
-        m = np.sum(adjacency_matrix.astype(bool)) / 2
-        # Possible links
-        n = adjacency_matrix.shape[0]
-        F = int((n * (n - 1)) / 2)
-
-    surprise = surprise_hypergeometric(F, p, M, m)
-    return surprise
-
-
-def surprise_hypergeometric(F, p, M, m):
-    surprise = 0
-    min_p = min(M, m)
-    for p_loop in np.arange(p, min_p + 1):
-        surprise += (comb(M, p_loop, exact=True) * comb(
-            F - M, m - p_loop,
-            exact=True)) / comb(F,
-                                m,
-                                exact=True)
-    return surprise
-
-
-def evaluate_surprise_clust_weigh(adjacency_matrix,
-                                  cluster_assignment,
-                                  is_directed):
-    """Calculates the logarithm of the surprise given the current partitions
-     for a weighted network.
-
-    :param adjacency_matrix: Weighted adjacency matrix.
-    :type adjacency_matrix: numpy.ndarray
-    :param cluster_assignment: Nodes memberships.
-    :type cluster_assignment: numpy.ndarray
-    :param is_directed: True if the graph is directed.
-    :type is_directed: bool
-    :return: Log-surprise.
-    :rtype: float
-    """
-    if is_directed:
-        # intracluster weights
-        w = cd.intracluster_links(adjacency_matrix,
-                                  cluster_assignment)
-        # intracluster possible links
-        Vi = cd.calculate_possible_intracluster_links(cluster_assignment,
-                                                      is_directed)
-        # Total Weight
-        W = np.sum(adjacency_matrix)
-        # Possible links
-        n = adjacency_matrix.shape[0]
-        V = n * (n - 1)
-        # extracluster links
-        Ve = V - Vi
-    else:
-        # intracluster weights
-        w = cd.intracluster_links(adjacency_matrix,
-                                  cluster_assignment) / 2
-        # intracluster possible links
-        Vi = cd.calculate_possible_intracluster_links(cluster_assignment,
-                                                      is_directed)
-        # Total Weight
-        W = np.sum(adjacency_matrix) / 2
-        # Possible links
-        n = adjacency_matrix.shape[0]
-        V = int((n * (n - 1)) / 2)
-        # extracluster links
-        Ve = V - Vi
-
-    surprise = surprise_negative_hypergeometric(Vi, w, Ve, W, V)
-    return surprise
-
-
 def surprise_negative_hypergeometric(Vi, w, Ve, W, V):
     """Computes the negative hypergeometric distribution.
     """
@@ -785,62 +764,6 @@ def logmulti_hyperprobability_weightenh(V_o, l_o, V_c, l_c, w_o, w_c, V, L, W):
     return aux1 * aux2
 
 
-def evaluate_surprise_community_enh(
-        adjacency_matrix,
-        cluster_assignment,
-        is_directed):
-    """Calculates surprise given the current partitions for a weighted network.
-
-    :param adjacency_matrix: Weighted adjacency matrix.
-    :type adjacency_matrix: numpy.ndarray
-    :param cluster_assignment: Nodes memberships.
-    :type cluster_assignment: numpy.ndarray
-    :param is_directed: True if the graph is directed.
-    :type is_directed: bool
-    :return: Log-surprise.
-    :rtype: float
-    """
-    if is_directed:
-        # intracluster weights
-        l_o, w_o = cd.intracluster_links_enh(adjacency_matrix,
-                                             cluster_assignment)
-        # intracluster possible links
-        V_o = cd.calculate_possible_intracluster_links(
-            cluster_assignment,
-            is_directed)
-        # Total Weight
-        W = np.sum(adjacency_matrix)
-        L = np.sum(adjacency_matrix.astype(bool))
-        # Possible links
-        n = adjacency_matrix.shape[0]
-        V = n * (n - 1)
-        # extracluster links
-        # inter_links = V - V_o
-    else:
-        # intracluster weights
-        l_o, w_o = cd.intracluster_links_enh(adjacency_matrix,
-                                             cluster_assignment)
-        l_o = l_o / 2
-        w_o = w_o / 2
-        # intracluster possible links
-        V_o = cd.calculate_possible_intracluster_links(
-            cluster_assignment,
-            is_directed)
-        # Total Weight
-        W = np.sum(adjacency_matrix) / 2
-        L = np.sum(adjacency_matrix.astype(bool)) / 2
-        # Possible links
-        n = adjacency_matrix.shape[0]
-        V = int((n * (n - 1)) / 2)
-        # extracluster links
-        # inter_links = V - V_o
-
-    # print("V_0", V_o, "l_0", l_o, "w_0", w_o, "V", V, "L", L, "W", W)
-
-    surprise = surprise_clust_enh(V_o, l_o, w_o, V, L, W)
-    return surprise
-
-
 @jit(forceobj=True)
 def surprise_clust_enh(V_o, l_o, w_o, V, L, W):
     min_l_loop = min(L, V_o)
@@ -885,58 +808,3 @@ def logenhancedhypergeometric(V_o, l_o, w_o, V, L, W):
         aux2 = comb(w_o - 1, w_o - L, True)
     return aux1 * aux2
 
-
-def evaluate_surprise_com_det_continuous(
-        adjacency_matrix,
-        cluster_assignment,
-        is_directed):
-    """Calculates the logarithm of the continuous surprise given
-     the current partitions for a weighted network.
-
-    :param adjacency_matrix: Weighted adjacency matrix.
-    :type adjacency_matrix: numpy.ndarray
-    :param cluster_assignment: Nodes memberships.
-    :type cluster_assignment: numpy.ndarray
-    :param is_directed: True if the graph is directed.
-    :type is_directed: bool
-    :return: Log-surprise.
-    :rtype: float
-    """
-    if is_directed:
-        # intracluster weights
-        w = cd.intracluster_links(adjacency_matrix,
-                                  cluster_assignment)
-        # intracluster possible links
-        poss_intr_links = cd.calculate_possible_intracluster_links(
-            cluster_assignment,
-            is_directed)
-        # Total Weight
-        tot_weights = np.sum(adjacency_matrix)
-        # Possible links
-        n = adjacency_matrix.shape[0]
-        poss_links = n * (n - 1)
-        # extracluster links
-        # inter_links = poss_links - poss_intr_links
-    else:
-        # intracluster weights
-        w = cd.intracluster_links(adjacency_matrix,
-                                  cluster_assignment) / 2
-        # intracluster possible links
-        poss_intr_links = cd.calculate_possible_intracluster_links(
-            cluster_assignment,
-            is_directed)
-        # Total Weight
-        tot_weights = np.sum(adjacency_matrix) / 2
-        # Possible links
-        n = adjacency_matrix.shape[0]
-        poss_links = int((n * (n - 1)) / 2)
-        # extracluster links
-        # inter_links = poss_links - poss_intr_links
-
-    surprise = cd.continuous_surprise_clust(
-        V=poss_links,
-        W=tot_weights,
-        w_o=w,
-        V_o=poss_intr_links)
-
-    return surprise

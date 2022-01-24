@@ -37,12 +37,12 @@ setup(
         "tqdm>=4.5"
                       ],
     extras_require={
-        "dev": ["pytest>=6.0.1",
-                "flake8>=3.8.3",
-                "wheel>=0.36.2",
-                "check-manifest>=0.44",
-                "setuptools>=47.1.0",
-                "twine>=3.2.0",
-                "tox>=3.20.1"],
+        "dev": ["pytest~=6.0.1",
+                "flake8~=3.8.3",
+                "wheel~=0.36.2",
+                "check-manifest~=0.44",
+                "setuptools~=47.1.0",
+                "twine~=3.2.0",
+                "tox~=3.20.1"],
         },
 )
