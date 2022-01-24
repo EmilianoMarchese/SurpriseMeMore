@@ -414,9 +414,9 @@ class DirectedGraph:
 
     def run_discrete_community_detection(self,
                                          method="agglomerative",
-                                         initial_guess=None,
+                                         initial_guess="random",
                                          weighted=None,
-                                         num_sim=None,
+                                         num_sim=2,
                                          num_clusters=2,
                                          prob_mix=0.1,
                                          sorting_method="default",
